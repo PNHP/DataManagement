@@ -43,6 +43,8 @@ arcpy.env.overwriteOutput = True
 # define env.workspace - this space is used for all temporary files
 env.workspace = r'in_memory'
 
+et = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Biotics Database Areas\Element Tracking\current element lists\2018-03-29 complete EST.xlsx'
+
 # file names of the five element feature classes in the FIND enterprise GDB
 input_features = ["FIND.DBO.el_pt", "FIND.DBO.el_line", "FIND.DBO.comm_poly",
 "FIND.DBO.comm_pt", "FIND.DBO.el_poly", "FIND.DBO.survey_poly"]
@@ -98,7 +100,7 @@ def countyinfo(elementGDB, counties):
 
         fields = arcpy.ListFields(spatial_join)
         keepFields = ["OID", "OBJECTID", "SHAPE", "SHAPE.STLength()", "SHAPE.STArea()", "COUNTY_NAM", "refcode",
-        "created_user", "created_date", "dm_stat", "dm_stat_comm", "last_up_by",
+        "created_user", "created_date", "eoid", "BioticsSFID", "dm_stat", "dm_stat_comm", "last_up_by",
         "last_up_on", "element_type", "elem_name", "id_prob",
         "id_prob_comm", "specimen_taken", "specimen_count", "specimen_desc",
         "curatorial_meth", "specimen_repo", "voucher_photo", "elem_found", "X", "Y"]
@@ -419,6 +421,19 @@ def idreview(elementRecords):
             outTable = os.path.join(outPath, filename)
             arcpy.TableToExcel_conversion(tableTEMP, outTable)
     print "ID Reviewers Status Report Created!"
+
+def dmunprocessed(elementRecords):
+    with arcpy.da.UpdateCursor(elementRecords, "element_type") as cursor:
+        for row in cursor:
+            if row[0] == "survey_site":
+                cursor.deleteRow()
+    with arcpy.da.UpdateCursor(elementRecords,["eoid","BioticsSFID","dm_stat"]) as cursor:
+        for row in cursor:
+            if row[0] is None and row[1] is None and row[3] == 'dmproc':
+                pass
+            else:
+                cursor.deleteRow()
+
 
 ################################################################################
 # Start Script...
