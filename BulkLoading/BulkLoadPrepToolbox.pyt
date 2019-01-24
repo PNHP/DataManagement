@@ -164,7 +164,7 @@ class TerrestrialGrouping(object):
         arcpy.AddMessage("Preparing input data")
         #prepare single fc from biotics sf fcs
         sfs_in = [eo_sourcept,eo_sourceln,eo_sourcepy]
-        sfs_out = ["eo_sourcept","eo_sourceln","eo_sourcepy"]
+        sfs_out = ["eo_sourcept1","eo_sourceln1","eo_sourcepy1"]
         for sf_in,sf_out in zip(sfs_in,sfs_out):
             arcpy.Buffer_analysis(sf_in,sf_out,1)
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
@@ -274,7 +274,7 @@ class TerrestrialGrouping(object):
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_NEW") as cursor:
                             for row in cursor:
-                                row[0] = str(word_index) #word_list[word_index]
+                                row[0] = "new_eo_" + str(word_index) #word_list[word_index]
                                 cursor.updateRow(row)
                         arcpy.AddMessage("ObjectID " + str(objectid)  + ", along with " + str(countAfter-1) + " observations were assigned a new EO: " + str(word_index) + ". " + str(observation_num) + "/" + str(total_obs) + " completed.")
                         word_index += 1
@@ -326,10 +326,10 @@ class TerrestrialGrouping(object):
                         with arcpy.da.UpdateCursor(data_lyr, ["SF_NEW", "EO_NEW"]) as cursor:
                             for row in cursor:
                                 if row[1] != None:
-                                    sf_id = row[1] + "_" + str(word_index) #word_list[word_index]
+                                    sf_id = "new_sf_"+str(word_index)
                                     row[0] = sf_id
                                 else:
-                                    sf_id = str(word_index) #word_list[word_index]
+                                    sf_id = "new_sf_"+str(word_index)
                                     row[0] = sf_id
                                 cursor.updateRow(row)
                         arcpy.AddMessage("ObjectID " + str(objectid)  + ", along with " + str(countAfter-1) + " observations were assigned a new SF: " + sf_id + ". " + str(observation_num) + "/" + str(total_obs) + " completed.")
@@ -476,6 +476,7 @@ class AquaticGrouping(object):
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
+        flowlines.value = r'W:\Heritage\Heritage_Data\Heritage_Data_Tools\AquaticNetworkData.gdb\Aquatic_network\NHDFlowline'
 
         network = arcpy.Parameter(
             displayName = "Network dataset built on NHD flowlines",
@@ -483,6 +484,7 @@ class AquaticGrouping(object):
             datatype = "GPNetworkDatasetLayer",
             parameterType = "Required",
             direction = "Input")
+        network.value = r'W:\Heritage\Heritage_Data\Heritage_Data_Tools\AquaticNetworkData.gdb\Aquatic_network\PA_network_ND'
 
         dams = arcpy.Parameter(
             displayName = "Dams/barrier points (must be snapped to NHD flowlines)",
@@ -512,7 +514,7 @@ class AquaticGrouping(object):
         return
 
     def execute(self, params, messages):
-        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SFID and EOID grouping variable to observations based on eparation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
+        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SFID and EOID grouping variable to observations based on separation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
 
         in_points = params[0].valueAsText
         in_lines = params[1].valueAsText
@@ -530,6 +532,9 @@ class AquaticGrouping(object):
         network = params[13].valueAsText
         dams = params[14].valueAsText
         snap_dist = params[15].valueAsText
+
+        arcpy.env.overwriteOutput = True
+        arcpy.env.workspace = "in_memory"
 
         arcpy.AddMessage("Preparing input data for use in EO/SF assignment.")
         data_in = []
@@ -558,7 +563,7 @@ class AquaticGrouping(object):
 
         #prepare single fc from biotics sf fcs
         sfs_in = [eo_sourcept,eo_sourceln,eo_sourcepy]
-        sfs_out = ["eo_sourcept","eo_sourceln","eo_sourcepy"]
+        sfs_out = ["eo_sourcept1","eo_sourceln1","eo_sourcepy1"]
         for sf_in,sf_out in zip(sfs_in,sfs_out):
             arcpy.Buffer_analysis(sf_in,sf_out,1)
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
@@ -600,7 +605,7 @@ class AquaticGrouping(object):
         species_rep = 1
         group_id = 1
         for species in species_list:
-            arcpy.AddMessage("Assigning EO for "+str(species_rep)+"/"+str(total_species)+": "+species)
+            arcpy.AddMessage("Assigning EO for "+str(species_rep)+"/"+str(total_species)+": "+str(species))
             species_rep+=1
             s = arcpy.FeatureClassToFeatureClass_conversion(species_pt_copy,"in_memory","s",species_query.format(species_code,species))
             eo = arcpy.MakeFeatureLayer_management(eo_reps,"eo",eo_species_query.format(species_code_field,species))
@@ -609,7 +614,7 @@ class AquaticGrouping(object):
                 if k==species:
                     distance=(v*1000)-2
 
-            #arcpy.AddMessage("Creating service area line layer for " +species + " to compare to existing EOs")
+            #arcpy.AddMessage("Creating service area line layer for " +str(species) + " to compare to existing EOs")
             #create service area line layer
             eo_service_area_lyr = arcpy.na.MakeServiceAreaLayer(network,"eo_service_area_lyr","Length","TRAVEL_FROM",distance,polygon_type="NO_POLYS",line_type="TRUE_LINES",overlap="OVERLAP")
             eo_service_area_lyr = eo_service_area_lyr.getOutput(0)
@@ -628,7 +633,7 @@ class AquaticGrouping(object):
                 if k==species:
                     distance=((v*1000/2)-2)
 
-            #arcpy.AddMessage("Creating service area line layer for " +species + " separation distance grouping")
+            #arcpy.AddMessage("Creating service area line layer for " +str(species) + " separation distance grouping")
             sp_service_area_lyr = arcpy.na.MakeServiceAreaLayer(network,"sp_service_area_lyr","Length","TRAVEL_FROM",
                 distance,polygon_type="NO_POLYS",line_type="TRUE_LINES",overlap="OVERLAP")
             sp_service_area_lyr = sp_service_area_lyr.getOutput(0)
@@ -695,7 +700,7 @@ class AquaticGrouping(object):
                             row[2]=str(v[1])
                             cursor.updateRow(row)
                         elif k==row[0] and v[1] is None:
-                            row[1]=str(v[0])
+                            row[1]="new_eo_"+str(v[0])
                             cursor.updateRow(row)
                         else:
                             pass
@@ -748,10 +753,10 @@ class AquaticGrouping(object):
                         with arcpy.da.UpdateCursor(species_lyr, ["SF_NEW", "EO_NEW"]) as cursor:
                             for row in cursor:
                                 if row[1] != None:
-                                    sf_id = row[1] + "_" + str(group_id) #word_list[word_index]
+                                    sf_id = "new_sf_"+str(group_id)
                                     row[0] = sf_id
                                 else:
-                                    sf_id = str(group_id) #word_list[word_index]
+                                    sf_id = "new_sf_"+str(group_id)
                                     row[0] = sf_id
                                 cursor.updateRow(row)
                         group_id += 1
