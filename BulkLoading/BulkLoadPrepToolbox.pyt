@@ -184,8 +184,8 @@ class TerrestrialGrouping(object):
 
         join_id = 1
         for i,o in zip(data_in,data_out):
-            arcpy.AddField_management(i,"temp_join_id","TEXT")
-            with arcpy.da.UpdateCursor(i,"temp_join_id") as cursor:
+            arcpy.AddField_management(i,"join_id","TEXT")
+            with arcpy.da.UpdateCursor(i,"join_id") as cursor:
                 for row in cursor:
                     row[0]=str(join_id)
                     cursor.updateRow(row)
@@ -361,8 +361,8 @@ class TerrestrialGrouping(object):
 
         add_fields=add_fields_int+add_fields_text
         for data in data_in:
-            arcpy.JoinField_management(data,"temp_join_id",data_lyr,"temp_join_id",add_fields)
-            arcpy.DeleteField_management(data,"temp_join_id")
+            arcpy.JoinField_management(data,"join_id",data_lyr,"join_id",add_fields)
+            arcpy.DeleteField_management(data,"join_id")
 
         arcpy.Delete_management("in_memory")
         return
@@ -548,15 +548,15 @@ class AquaticGrouping(object):
         if in_poly:
             data_in.append(in_poly)
             data_out.append("polys")
-        join_id = 1
+        join_id1 = 1
         for i,o in zip(data_in,data_out):
-            if len(arcpy.ListFields(i,"temp_join_id")) == 0:
-                arcpy.AddField_management(i,"temp_join_id","TEXT")
-            with arcpy.da.UpdateCursor(i,"temp_join_id") as cursor:
+            if len(arcpy.ListFields(i,"join_id")) == 0:
+                arcpy.AddField_management(i,"join_id","TEXT")
+            with arcpy.da.UpdateCursor(i,"join_id") as cursor:
                 for row in cursor:
-                    row[0]=str(join_id)
+                    row[0]=str(join_id1)
                     cursor.updateRow(row)
-                    join_id+=1
+                    join_id1+=1
             arcpy.FeatureVerticesToPoints_management(i,o,"ALL")
         species_pt = arcpy.Merge_management(data_out,"data_merge")
         species_pt_copy = arcpy.FeatureClassToFeatureClass_conversion(species_pt,"in_memory","species_pt_copy")
@@ -569,7 +569,7 @@ class AquaticGrouping(object):
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
 
         #delete identical points with tolerance to increase speed
-        arcpy.DeleteIdentical_management(species_pt,["temp_join_id","Shape"],"100 Meters")
+        arcpy.DeleteIdentical_management(species_pt,["join_id","Shape"],"100 Meters")
 
         #add EO/SF ID fields if they do not already exist
         add_fields_text = ["SF_ID","SF_NEW","EO_ID","EO_NEW"]
@@ -689,11 +689,11 @@ class AquaticGrouping(object):
                             row[1] = ",".join(map(str, Ndi[row[0]]))
                             cursor.updateRow(row)
 
-            arcpy.DeleteIdentical_management(sp_join1,["temp_join_id","eoid","group_id"])
+            arcpy.DeleteIdentical_management(sp_join1,["join_id","eoid","group_id"])
 
-            id_fill = {f[0]: [f[1],f[2]] for f in arcpy.da.SearchCursor(sp_join1, ["temp_join_id","group_id","eoid"])}
+            id_fill = {f[0]: [f[1],f[2]] for f in arcpy.da.SearchCursor(sp_join1, ["join_id","group_id","eoid"])}
 
-            with arcpy.da.UpdateCursor(species_pt,["temp_join_id","EO_NEW","EO_ID"]) as cursor:
+            with arcpy.da.UpdateCursor(species_pt,["join_id","EO_NEW","EO_ID"]) as cursor:
                 for row in cursor:
                     for k,v in id_fill.items():
                         if k==row[0] and v[1] is not None:
@@ -705,7 +705,7 @@ class AquaticGrouping(object):
                         else:
                             pass
 
-        arcpy.DeleteIdentical_management(species_pt,["temp_join_id","EO_ID","EO_NEW"])
+        arcpy.DeleteIdentical_management(species_pt,["join_id","EO_ID","EO_NEW"])
 
         #get name of true OID field
         objectid_field = arcpy.Describe(species_pt).OIDFieldName
@@ -785,10 +785,10 @@ class AquaticGrouping(object):
 
         add_fields=add_fields_int+add_fields_text
         for data in data_in:
-            arcpy.JoinField_management(data,"temp_join_id",species_lyr,"temp_join_id",add_fields)
+            arcpy.JoinField_management(data,"join_id",species_lyr,"join_id",add_fields)
 
         for data in data_in:
-            arcpy.DeleteField_management(data,"temp_join_id")
+            arcpy.DeleteField_management(data,"join_id")
         arcpy.Delete_management("in_memory")
 
         return
