@@ -198,7 +198,7 @@ class TerrestrialGrouping(object):
             species_query = "{}={}"
         else:
             species_query = "{}='{}'"
-        if arcpy.ListFields(data_lyr,species_code_field)[0].type == 'Integer':
+        if arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Integer':
             eo_species_query = "{}={}"
         else:
             eo_species_query = "{}='{}'"
