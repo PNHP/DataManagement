@@ -194,11 +194,11 @@ class TerrestrialGrouping(object):
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
-        if arcpy.ListFields(data_lyr,species_code)[0].type == 'Integer':
+        if arcpy.ListFields(data_lyr,species_code)[0].type == 'Integer' or arcpy.ListFields(data_lyr,species_code)[0].type == 'Double' or arcpy.ListFields(data_lyr,species_code)[0].type == 'Float':
             species_query = "{}={}"
         else:
             species_query = "{}='{}'"
-        if arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Integer':
+        if arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Integer' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Double' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Float':
             eo_species_query = "{}={}"
         else:
             eo_species_query = "{}='{}'"
@@ -249,7 +249,7 @@ class TerrestrialGrouping(object):
                     if selection_num is not u'':
                         with arcpy.da.SearchCursor(eo_reps, eo_id_field) as cursor:
                             #eoid = sorted({row[0] for row in cursor}, reverse=True)[0] #use this if keeping newest EO
-                            eoid = ",".join(sorted({str(row[0]) for row in cursor})) #use this if filling with EOIDs of all EOs within separation distance
+                            eoid = ",".join(sorted({str(int(row[0])) for row in cursor})) #use this if filling with EOIDs of all EOs within separation distance
                         #set arbitrary unequal counts to start while loop
                         countBefore = 0
                         countAfter = 1
@@ -260,7 +260,7 @@ class TerrestrialGrouping(object):
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_ID") as cursor:
                             for row in cursor:
-                                row[0] = str(eoid)
+                                row[0] = eoid
                                 cursor.updateRow(row)
                         arcpy.AddMessage("ObjectID " + str(objectid)  + ", along with " + str(countAfter-1) + " observations were assigned an existing EO: " + str(eoid) + ". " + str(observation_num) + "/" + str(total_obs) + " completed.")
                     #if no existing EOs selected within separation distance, select all observations within the separation distance and assign new random word
@@ -300,7 +300,7 @@ class TerrestrialGrouping(object):
                     if arcpy.Describe('sf_lyr').fidset is not u'':
                         with arcpy.da.SearchCursor('sf_lyr', sf_id_field) as cursor:
                             #sfid = sorted({row[0] for row in cursor}, reverse=True)[0] #use this line if you want to use the newest SF ID within separation distance
-                            sfid = ",".join(sorted({str(row[0]) for row in cursor})) # use this line if you want to list all SF IDs within separation distance
+                            sfid = ",".join(sorted({str(int(row[0])) for row in cursor})) # use this line if you want to list all SF IDs within separation distance
                         countBefore = 0
                         countAfter = 1
                         while(countBefore!=countAfter):
@@ -587,11 +587,11 @@ class AquaticGrouping(object):
         with arcpy.da.SearchCursor(species_pt,species_code) as cursor:
             species_list = sorted({row[0] for row in cursor})
 
-        if arcpy.ListFields(species_pt,species_code)[0].type == 'Integer':
+        if arcpy.ListFields(species_pt,species_code)[0].type == 'Integer' or arcpy.ListFields(species_pt,species_code)[0].type == 'Double' or arcpy.ListFields(species_pt,species_code)[0].type == 'Float':
             species_query = "{}={}"
         else:
             species_query = "{}='{}'"
-        if arcpy.ListFields(species_pt,species_code_field)[0].type == 'Integer':
+        if arcpy.ListFields(species_pt,species_code_field)[0].type == 'Integer' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Double' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Float':
             eo_species_query = "{}={}"
         else:
             eo_species_query = "{}='{}'"
