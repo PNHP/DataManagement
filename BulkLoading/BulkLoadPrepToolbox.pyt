@@ -247,6 +247,7 @@ class TerrestrialGrouping(object):
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
+        #updated to account for double and float field types
         if arcpy.ListFields(data_lyr,species_code)[0].type == 'Integer' or arcpy.ListFields(data_lyr,species_code)[0].type == 'Double' or arcpy.ListFields(data_lyr,species_code)[0].type == 'Float':
             species_query = "{}={}"
         else:
