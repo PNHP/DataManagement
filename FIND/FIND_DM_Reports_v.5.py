@@ -65,7 +65,7 @@ counties = r"W:\\LYRS\\Boundaries_Political\\County Hollow.lyr"
 
 # path to folder where DM reports will be saved as Excel files
 ReportsPath = "P:\Conservation Programs\Natural Heritage Program\Data Management" \
-"\Instructions, procedures and documentation\FIND\FIND_2018\Reports"
+"\Instructions, procedures and documentation\FIND\FIND_2019\Reports"
 
 def countyinfo(elementGDB, counties):
     '''function that loops through each element shapefile and assigns county

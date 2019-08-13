@@ -73,6 +73,22 @@ class TerrestrialGrouping(object):
             direction = "Input")
         lu_separation.parameterDependencies = [in_points.name]
 
+        loc_uncert = arcpy.Parameter(
+            displayName = "Locational Uncertainty Type Field",
+            name = "loc_uncert",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        loc_uncert.parameterDependencies = [in_points.name]
+
+        loc_uncert_dist = arcpy.Parameter(
+            displayName = "Locational Uncertainty Distance Field (Units must be meters)",
+            name = "loc_uncert_dist",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        loc_uncert_dist.parameterDependencies = [in_points.name]
+
         eo_reps = arcpy.Parameter(
             displayName = "Existing EO Reps Layer",
             name = "eo_reps",
@@ -131,7 +147,7 @@ class TerrestrialGrouping(object):
             direction = "Input")
         species_code_field.parameterDependencies = [eo_reps.name]
 
-        params = [in_points,in_lines,in_poly,species_code,lu_separation,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field]
+        params = [in_points,in_lines,in_poly,species_code,lu_separation,loc_uncert,loc_uncert_dist,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field]
         return params
 
     def isLicensed(self):
@@ -144,20 +160,22 @@ class TerrestrialGrouping(object):
         return
 
     def execute(self, params, messages):
-        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SFID and EOID grouping variable to observations based on eparation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
+        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SFID and EOID grouping variable to observations based on separation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
 
         in_points = params[0].valueAsText
         in_lines = params[1].valueAsText
         in_poly = params[2].valueAsText
         species_code = params[3].valueAsText
         lu_separation = params[4].valueAsText
-        eo_reps = params[5].valueAsText
-        eo_id_field = params[6].valueAsText
-        eo_sourcept = params[7].valueAsText
-        eo_sourceln = params[8].valueAsText
-        eo_sourcepy = params[9].valueAsText
-        sf_id_field = params[10].valueAsText
-        species_code_field = params[11].valueAsText
+        loc_uncert = params[5].valueAsText
+        loc_uncert_dist = params[6].valueAsText
+        eo_reps = params[7].valueAsText
+        eo_id_field = params[8].valueAsText
+        eo_sourcept = params[9].valueAsText
+        eo_sourceln = params[10].valueAsText
+        eo_sourcepy = params[11].valueAsText
+        sf_id_field = params[12].valueAsText
+        species_code_field = params[13].valueAsText
 
         arcpy.env.workspace = "in_memory"
 
@@ -190,7 +208,42 @@ class TerrestrialGrouping(object):
                     row[0]=str(join_id)
                     cursor.updateRow(row)
                     join_id+=1
-            arcpy.Buffer_analysis(i,o,1)
+            arcpy.AddField_management(i,"buff_dist","SHORT")
+            if loc_uncert_dist:
+                with arcpy.da.UpdateCursor(i,["buff_dist",loc_uncert,loc_uncert_dist]) as cursor:
+                    for row in cursor:
+                        if row[1] is None:
+                            row[0] = 1
+                            cursor.updateRow(row)
+                        elif row[1].lower() == "estimated":
+                            row[0] = int(float(row[2])) + 1
+                            cursor.updateRow(row)
+                        else:
+                            row[0] = 1
+                            cursor.updateRow(row)
+            else:
+                with arcpy.da.UpdateCursor(i,"buff_dist") as cursor:
+                    for row in cursor:
+                        row[0] = 1
+        arcpy.Buffer_analysis(i,o,"buff_dist")
+        ##            arcpy.CreateFeatureclass_management ("in_memory", o, "POLYGON", i, spatial_reference = i)
+        ##            flds = [f.name for f in arcpy.ListFields(i)] #use arcpy.ListFields (), manual entry, or some other means to determine shared fields
+        ##            flds += ["SHAPE@"] #add geom token to fields
+        ##            oid_field = arcpy.Describe(i).OIDFieldName
+        ##            #iterate input, get geometry, insert into output
+        ##            with arcpy.da.SearchCursor (i, flds) as sCurs:
+        ##                with arcpy.da.InsertCursor(o,flds) as iCurs:
+        ##                    for row in sCurs:
+        ##                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
+        ##                        row = list(row)
+        ##                        geom = row [-1] #get geom object
+        ##                        b = geom.buffer(1)
+        ##                        row [-1] = b #add buffer to row
+        ##                        iCurs.insertRow (row)
+        ##
+        ##        del iCurs
+        ##        del sCurs
+
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
@@ -232,7 +285,7 @@ class TerrestrialGrouping(object):
             for row in cursor:
                 objectid = row[0]
                 #if one of the EOID fields already have a value, continue on to next feature
-                if row[2] != None and (row[1] != None or row[1] != 0):
+                if row[2] != None or (row[1] != None and row[1] != 0):
                     arcpy.AddMessage("ObjectID " + str(objectid) + " EO Observation number " + str(observation_num) + "/" + str(total_obs) + " has already been assigned to a new or existing EO.")
                     pass
                 else:
@@ -262,6 +315,7 @@ class TerrestrialGrouping(object):
                             for row in cursor:
                                 row[0] = eoid
                                 cursor.updateRow(row)
+                        arcpy.SelectLayerByAttribute_management(data_lyr, "CLEAR_SELECTION")
                         arcpy.AddMessage("ObjectID " + str(objectid)  + ", along with " + str(countAfter-1) + " observations were assigned an existing EO: " + str(eoid) + ". " + str(observation_num) + "/" + str(total_obs) + " completed.")
                     #if no existing EOs selected within separation distance, select all observations within the separation distance and assign new random word
                     else:
@@ -287,7 +341,7 @@ class TerrestrialGrouping(object):
         with arcpy.da.SearchCursor(data_lyr, search_fields) as cursor:
             for row in cursor:
                 objectid = row[0]
-                if row[2] != None and (row[1] != None or row[1] != 0):
+                if row[2] != None or (row[1] != None and row[1] != 0):
                     arcpy.AddMessage("ObjectID " + str(objectid) + " SF Observation number " + str(observation_num) + "/" + str(total_obs) + " has already been assigned to a new or existing SF.")
                 else:
                     sname = row[3]
@@ -340,9 +394,9 @@ class TerrestrialGrouping(object):
         #create unique id value for each unique source feature
         i = 1
         with arcpy.da.SearchCursor(data_lyr, ["SF_ID", "SF_NEW", "UNIQUEID"]) as cursor:
-            sfid1 = sorted({row[0] for row in cursor})
+            sfid1 = sorted({row[0] for row in cursor if row[0] is not None})
         with arcpy.da.SearchCursor(data_lyr, ["SF_ID", "SF_NEW", "UNIQUEID"]) as cursor:
-            sfid2 = sorted({row[1] for row in cursor})
+            sfid2 = sorted({row[1] for row in cursor if row[0] is not None})
         sfid = sfid1 + sfid2
         sfid = [x for x in sfid if x is not None]
         sfid = [x.encode('UTF8') for x in sfid]
@@ -363,6 +417,7 @@ class TerrestrialGrouping(object):
         for data in data_in:
             arcpy.JoinField_management(data,"join_id",data_lyr,"join_id",add_fields)
             arcpy.DeleteField_management(data,"join_id")
+            arcpy.DeleteField_management(data,"buff_dist")
 
         arcpy.Delete_management("in_memory")
         return
