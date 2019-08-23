@@ -225,24 +225,25 @@ class TerrestrialGrouping(object):
                 with arcpy.da.UpdateCursor(i,"buff_dist") as cursor:
                     for row in cursor:
                         row[0] = 1
-        arcpy.Buffer_analysis(i,o,"buff_dist")
-        ##            arcpy.CreateFeatureclass_management ("in_memory", o, "POLYGON", i, spatial_reference = i)
-        ##            flds = [f.name for f in arcpy.ListFields(i)] #use arcpy.ListFields (), manual entry, or some other means to determine shared fields
-        ##            flds += ["SHAPE@"] #add geom token to fields
-        ##            oid_field = arcpy.Describe(i).OIDFieldName
-        ##            #iterate input, get geometry, insert into output
-        ##            with arcpy.da.SearchCursor (i, flds) as sCurs:
-        ##                with arcpy.da.InsertCursor(o,flds) as iCurs:
-        ##                    for row in sCurs:
-        ##                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
-        ##                        row = list(row)
-        ##                        geom = row [-1] #get geom object
-        ##                        b = geom.buffer(1)
-        ##                        row [-1] = b #add buffer to row
-        ##                        iCurs.insertRow (row)
-        ##
-        ##        del iCurs
-        ##        del sCurs
+##            arcpy.Buffer_analysis(i,o,"buff_dist")
+            arcpy.CreateFeatureclass_management ("in_memory", o, "POLYGON", i, spatial_reference = i)
+            flds = [f.name for f in arcpy.ListFields(i)] #use arcpy.ListFields (), manual entry, or some other means to determine shared fields
+            flds += ["SHAPE@"] #add geom token to fields
+            oid_field = arcpy.Describe(i).OIDFieldName
+            #iterate input, get geometry, insert into output
+            with arcpy.da.SearchCursor (i, flds) as sCurs:
+                with arcpy.da.InsertCursor(o,flds) as iCurs:
+                    for row in sCurs:
+                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
+                        row = list(row)
+                        geom = row [-1] #get geom object
+                        buff_dist = flds.index("buff_dist")
+                        b = geom.buffer(row[buff_dist])
+                        row [-1] = b #add buffer to row
+                        iCurs.insertRow (row)
+
+            del iCurs
+            del sCurs
 
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")

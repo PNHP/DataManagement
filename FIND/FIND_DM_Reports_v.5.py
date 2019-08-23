@@ -292,7 +292,7 @@ def dmbiologist(pivotTable):
 
     outPath = "P:\\Conservation Programs\\Natural Heritage Program\\" \
     "Data Management\\Instructions, procedures and documentation\\FIND\\" \
-    "FIND_2018\\Reports\\Biologist Status Reports"
+    "FIND_2019\\Reports\\Biologist Status Reports"
 
     with arcpy.da.SearchCursor(pivotTableCOPY, "created_user") as cursor:
         biologists = sorted({row[0] for row in cursor})
@@ -406,7 +406,7 @@ def idreview(elementRecords):
 
     outPath = "P:\\Conservation Programs\\Natural Heritage Program\\" \
     "Data Management\\Instructions, procedures and documentation\\FIND\\" \
-    "FIND_2018\\Reports\\ID Reviewers Status Reports"
+    "FIND_2019\\Reports\\ID Reviewers Status Reports"
 
     with arcpy.da.SearchCursor(elementRecords, "Reviewer") as cursor:
         reviewers = sorted({row[0] for row in cursor})
