@@ -61,7 +61,7 @@ elementTables = ["element_point1", "element_line1","community_poly1",
 elementGDB = r"Database Connections\\FIND.Working.pgh-gis0.sde"
 
 # path to county layer
-counties = r"W:\\LYRS\\Boundaries_Political\\County Hollow.lyr"
+counties = r'Database Connections\StateLayers.Default.pgh-gis0.sde\StateLayers.DBO.Boundaries_Political\StateLayers.DBO.County'
 
 # path to folder where DM reports will be saved as Excel files
 ReportsPath = "P:\Conservation Programs\Natural Heritage Program\Data Management" \

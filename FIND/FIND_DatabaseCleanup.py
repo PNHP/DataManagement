@@ -24,7 +24,7 @@ from arcpy.sa import *
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-workspace = r"C:\Users\mmoore\AppData\Roaming\ESRI\Desktop10.6\ArcCatalog\FIND.Working.pgh-gis0.sde"
+workspace = r"C:\Users\mmoore\AppData\Roaming\ESRI\Desktop10.7\ArcCatalog\FIND.Working.pgh-gis0.sde"
 el_pt = r'{}\FIND.DBO.el_pt'.format(workspace)
 el_line = r'{}\FIND.DBO.el_line'.format(workspace)
 comm_poly = r'{}\FIND.DBO.comm_poly'.format(workspace)

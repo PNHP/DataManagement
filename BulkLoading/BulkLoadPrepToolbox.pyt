@@ -208,7 +208,7 @@ class TerrestrialGrouping(object):
                     row[0]=str(join_id)
                     cursor.updateRow(row)
                     join_id+=1
-            arcpy.AddField_management(i,"buff_dist","SHORT")
+            arcpy.AddField_management(i,"buff_dist","FLOAT")
             if loc_uncert_dist:
                 with arcpy.da.UpdateCursor(i,["buff_dist",loc_uncert,loc_uncert_dist]) as cursor:
                     for row in cursor:
@@ -225,13 +225,14 @@ class TerrestrialGrouping(object):
                 with arcpy.da.UpdateCursor(i,"buff_dist") as cursor:
                     for row in cursor:
                         row[0] = 1
+                        cursor.updateRow(row)
 ##            arcpy.Buffer_analysis(i,o,"buff_dist")
             arcpy.CreateFeatureclass_management ("in_memory", o, "POLYGON", i, spatial_reference = i)
             flds = [f.name for f in arcpy.ListFields(i)] #use arcpy.ListFields (), manual entry, or some other means to determine shared fields
             flds += ["SHAPE@"] #add geom token to fields
             oid_field = arcpy.Describe(i).OIDFieldName
             #iterate input, get geometry, insert into output
-            with arcpy.da.SearchCursor (i, flds) as sCurs:
+            with arcpy.da.SearchCursor(i, flds) as sCurs:
                 with arcpy.da.InsertCursor(o,flds) as iCurs:
                     for row in sCurs:
                         arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
@@ -269,10 +270,14 @@ class TerrestrialGrouping(object):
         for field in add_fields_text:
             if len(arcpy.ListFields(data_lyr,field)) == 0:
                 arcpy.AddField_management(data_lyr,field,"TEXT","","",50)
+            else:
+                pass
         add_fields_int = ["UNIQUEID"]
         for field in add_fields_int:
             if len(arcpy.ListFields(data_lyr,field)) == 0:
                 arcpy.AddField_management(data_lyr,field,"LONG")
+            else:
+                pass
 
         #set word index to assign words to new EO groups
         word_index = 1

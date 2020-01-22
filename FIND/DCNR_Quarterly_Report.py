@@ -60,6 +60,7 @@ def elementType():
 
     for ins, output in zip(input_features, elementTables):
         feature = os.path.join(elementGDB, ins)
+        print(feature)
 
         fieldmappings = arcpy.FieldMappings()
         fieldmappings.addTable(feature)
