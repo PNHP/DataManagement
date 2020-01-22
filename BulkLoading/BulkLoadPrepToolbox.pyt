@@ -235,7 +235,7 @@ class TerrestrialGrouping(object):
             with arcpy.da.SearchCursor(i, flds) as sCurs:
                 with arcpy.da.InsertCursor(o,flds) as iCurs:
                     for row in sCurs:
-                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
+##                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
                         row = list(row)
                         geom = row [-1] #get geom object
                         buff_dist = flds.index("buff_dist")
