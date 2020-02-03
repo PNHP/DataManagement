@@ -152,7 +152,7 @@ def manipulateTable(pivotTable):
     # add field and populate with total number of records by adding all records
     arcpy.AddField_management(pivotTable, "total_records", "DOUBLE",
     field_length = 3, field_alias = "Total Records")
-    expression = "!dmpend! + !dmproc! + !dmready! + !dr! + !idrev!"
+    expression = "!dmpend! + !dmproc! + !dmready! + !idprob! + !dr! + !idrev!"
     arcpy.CalculateField_management(pivotTable, "total_records", expression,
     "PYTHON_9.3")
 
