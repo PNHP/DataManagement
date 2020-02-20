@@ -18,6 +18,7 @@ et_invert = r'ET_INVERT'
 et_lep = r'ET_LEP'
 et_plant = r'ET_PLANT'
 et_vert = r'ET_VERT'
+et_all = r'ET'
 
 all_excel = [et_comm,et_insect,et_invert,et_lep,et_plant,et_vert]
 
@@ -33,6 +34,7 @@ et_invert = loadExcel(et_folder+et_invert+".xlsx")
 et_lep = loadExcel(et_folder+et_lep+".xlsx")
 et_plant = loadExcel(et_folder+et_plant+".xlsx")
 et_vert = loadExcel(et_folder+et_vert+".xlsx")
+et_all = loadExcel(et_folder+et_all+".xlsx")
 
 
 

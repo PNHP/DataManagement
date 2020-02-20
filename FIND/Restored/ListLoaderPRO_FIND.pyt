@@ -29,7 +29,6 @@ class LISTLOADERFIND(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "ListLoader PRO for FIND"
-        self.alias = "ListLoader PRO for FIND"
         self.description = "Seamlessly loads species list data from ListMaster to FIND in ArcGIS Pro."
         self.canRunInBackground = False
 
