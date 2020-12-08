@@ -118,7 +118,7 @@ class TerrestrialGrouping(object):
             displayName = "Existing Source Line Layer",
             name = "eo_sourceln",
             datatype = "GPFeatureLayer",
-            parameterType = "Required",
+            parameterType = "Optional",
             direction = "Input")
         eo_sourceln.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourceln"
 
@@ -126,7 +126,7 @@ class TerrestrialGrouping(object):
             displayName = "Existing Source Polygon Layer",
             name = "eo_sourcepy",
             datatype = "GPFeatureLayer",
-            parameterType = "Required",
+            parameterType = "Optional",
             direction = "Input")
         eo_sourcepy.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcepy"
 
@@ -147,7 +147,14 @@ class TerrestrialGrouping(object):
             direction = "Input")
         species_code_field.parameterDependencies = [eo_reps.name]
 
-        params = [in_points,in_lines,in_poly,species_code,lu_separation,loc_uncert,loc_uncert_dist,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field]
+        sf_include = arcpy.Parameter(
+            displayName = "Check box if you would like to include existing SF lines and polygons in source feature groupings.",
+            name = "sf_include",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
+        params = [in_points,in_lines,in_poly,species_code,lu_separation,loc_uncert,loc_uncert_dist,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field,sf_include]
         return params
 
     def isLicensed(self):
@@ -176,13 +183,23 @@ class TerrestrialGrouping(object):
         eo_sourcepy = params[11].valueAsText
         sf_id_field = params[12].valueAsText
         species_code_field = params[13].valueAsText
+        sf_include = params[14].valueAsText
 
         arcpy.env.workspace = "in_memory"
 
         arcpy.AddMessage("Preparing input data")
         #prepare single fc from biotics sf fcs
-        sfs_in = [eo_sourcept,eo_sourceln,eo_sourcepy]
-        sfs_out = ["eo_sourcept1","eo_sourceln1","eo_sourcepy1"]
+        sfs_in = [eo_sourcept]
+        sfs_out = ["eo_sourcept1"]
+        if str(sf_include) == "True":
+            if eo_sourceln:
+                sfs_in.append(eo_sourceln)
+                sfs_out.append("eo_sourcln1")
+            if eo_sourcepy:
+                sfs_in.append(eo_sourcepy)
+                sfs_out.append("eo_sourcepy1")
+        else:
+            pass
         for sf_in,sf_out in zip(sfs_in,sfs_out):
             arcpy.Buffer_analysis(sf_in,sf_out,1)
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
@@ -230,24 +247,6 @@ class TerrestrialGrouping(object):
                         row[0] = 1
                         cursor.updateRow(row)
             arcpy.Buffer_analysis(i,o,"buff_dist")
-##        arcpy.CreateFeatureclass_management ("in_memory", o, "POLYGON", i, spatial_reference = i)
-##        flds = [f.name for f in arcpy.ListFields(i)] #use arcpy.ListFields (), manual entry, or some other means to determine shared fields
-##        flds += ["SHAPE@"] #add geom token to fields
-##        oid_field = arcpy.Describe(i).OIDFieldName
-##        #iterate input, get geometry, insert into output
-##        with arcpy.da.SearchCursor(i, flds) as sCurs:
-##            with arcpy.da.InsertCursor(o,flds) as iCurs:
-##                for row in sCurs:
-##        ##                        arcpy.AddMessage("buffering OID "+str(row[flds.index(oid_field)]))
-##                    row = list(row)
-##                    geom = row [-1] #get geom object
-##                    buff_dist = flds.index("buff_dist")
-##                    b = geom.buffer(row[buff_dist])
-##                    row [-1] = b #add buffer to row
-##                    iCurs.insertRow (row)
-##
-##        del iCurs
-##        del sCurs
 
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
@@ -403,10 +402,10 @@ class TerrestrialGrouping(object):
 
         #create unique id value for each unique source feature
         i = 1
-        with arcpy.da.SearchCursor(data_lyr, ["SF_ID", "SF_NEW", "UNIQUEID"]) as cursor:
+        with arcpy.da.SearchCursor(data_lyr, "SF_ID") as cursor:
             sfid1 = sorted({row[0] for row in cursor if row[0] is not None})
-        with arcpy.da.SearchCursor(data_lyr, ["SF_ID", "SF_NEW", "UNIQUEID"]) as cursor:
-            sfid2 = sorted({row[1] for row in cursor if row[0] is not None})
+        with arcpy.da.SearchCursor(data_lyr, "SF_NEW") as cursor:
+            sfid2 = sorted({row[0] for row in cursor if row[0] is not None})
         sfid = sfid1 + sfid2
         sfid = [x for x in sfid if x is not None]
         sfid = [x.encode('UTF8') for x in sfid]
@@ -506,7 +505,7 @@ class AquaticGrouping(object):
             displayName = "Existing source line layer",
             name = "eo_sourceln",
             datatype = "GPFeatureLayer",
-            parameterType = "Required",
+            parameterType = "Optional",
             direction = "Input")
         eo_sourceln.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourceln"
 
@@ -514,7 +513,7 @@ class AquaticGrouping(object):
             displayName = "Existing source polygon layer",
             name = "eo_sourcepy",
             datatype = "GPFeatureLayer",
-            parameterType = "Required",
+            parameterType = "Optional",
             direction = "Input")
         eo_sourcepy.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcepy"
 
@@ -566,7 +565,14 @@ class AquaticGrouping(object):
             direction = "Input")
         snap_dist.value = "100"
 
-        params = [in_points,in_lines,in_poly,species_code,lu_separation,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field,flowlines,network,dams,snap_dist]
+        sf_include = arcpy.Parameter(
+            displayName = "Check box if you would like to include existing SF lines and polygons in source feature groupings.",
+            name = "sf_include",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
+        params = [in_points,in_lines,in_poly,species_code,lu_separation,eo_reps,eo_id_field,eo_sourcept,eo_sourceln,eo_sourcepy,sf_id_field,species_code_field,flowlines,network,dams,snap_dist,sf_include]
         return params
 
     def isLicensed(self):
@@ -597,6 +603,7 @@ class AquaticGrouping(object):
         network = params[13].valueAsText
         dams = params[14].valueAsText
         snap_dist = params[15].valueAsText
+        sf_include = params[16].valueAsText
 
         arcpy.env.overwriteOutput = True
         arcpy.env.workspace = "in_memory"
@@ -627,11 +634,21 @@ class AquaticGrouping(object):
         species_pt_copy = arcpy.FeatureClassToFeatureClass_conversion(species_pt,"in_memory","species_pt_copy")
 
         #prepare single fc from biotics sf fcs
-        sfs_in = [eo_sourcept,eo_sourceln,eo_sourcepy]
-        sfs_out = ["eo_sourcept1","eo_sourceln1","eo_sourcepy1"]
+        sfs_in = [eo_sourcept]
+        sfs_out = ["eo_sourcept1"]
+        if str(sf_include) == "True":
+            if eo_sourceln:
+                sfs_in.append(eo_sourceln)
+                sfs_out.append("eo_sourcln1")
+            if eo_sourcepy:
+                sfs_in.append(eo_sourcepy)
+                sfs_out.append("eo_sourcepy1")
+        else:
+            pass
         for sf_in,sf_out in zip(sfs_in,sfs_out):
             arcpy.Buffer_analysis(sf_in,sf_out,1)
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
+        sf_lyr = arcpy.MakeFeatureLayer_management(sf_merge, "sf_lyr")
 
         #delete identical points with tolerance to increase speed
         arcpy.DeleteIdentical_management(species_pt,["join_id","Shape"],"100 Meters")
@@ -656,7 +673,7 @@ class AquaticGrouping(object):
             species_query = "{}={}"
         else:
             species_query = "{}='{}'"
-        if arcpy.ListFields(species_pt,species_code_field)[0].type == 'Integer' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Double' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Float':
+        if arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Integer' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Double' or arcpy.ListFields(eo_reps,species_code_field)[0].type == 'Float':
             eo_species_query = "{}={}"
         else:
             eo_species_query = "{}='{}'"

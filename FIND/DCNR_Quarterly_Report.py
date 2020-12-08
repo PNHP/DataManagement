@@ -52,7 +52,7 @@ elementTables = ["element_point", "element_line", "element_poly", "community_pol
 # path to FIND enterprise database
 elementGDB = r"Database Connections\\FIND.Working.pgh-gis0.sde"
 
-reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2018\Reports\DCNR Quarterly FIND Reports'
+reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2020\Reports\DCNR Quarterly FIND Reports'
 
 def elementType():
     '''function that assigns element type to all features based on name of
@@ -120,6 +120,8 @@ def elementType():
             if row[0] == "dmpend":
                 row[0] = "DM Pending"
                 cursor.updateRow(row)
+##            if row[0] == "idprob":
+##                row[0] = "ID Problems"
             if row[1] == "community_poly" or row[1] == "community_point":
                 row[1] = "Communities"
                 cursor.updateRow(row)
@@ -138,7 +140,10 @@ def elementType():
     pivotTable = arcpy.PivotTable_management(summaryTable, 'Feature_Class', 'dm_stat', 'FREQUENCY', "pivotTable")
 
     arcpy.AddField_management(pivotTable, "Total", "LONG", "", "", 8, "Total")
-    arcpy.CalculateField_management(pivotTable, "Total", "!DM_Pending! + !DM_Processed! + !Ready_for_DM! + !Draft! + !Ready_for_ID_Review!", "PYTHON_9.3")
+    with arcpy.da.UpdateCursor(pivotTable,["Total","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","idprob"]) as cursor:
+        for row in cursor:
+            row[0] = row[1]+row[2]+row[3]+row[4]+row[5]+row[6]
+            cursor.updateRow(row)
 
     # export table as Excel file to produce final report
     filename = "FIND Quarterly Report " + time.strftime("%d%b%y")+".xls"

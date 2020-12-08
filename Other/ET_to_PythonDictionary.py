@@ -11,7 +11,7 @@
 
 import pandas as pd
 
-et_folder = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2019\DM Documentation\Admin and maintenance\20190225_'
+et_folder = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2020\DM Documentation\Admin and maintenance\20200305_'
 et_comm = r'ET_COMMOTH'
 et_insect = r'ET_INSECT'
 et_invert = r'ET_INVERT'

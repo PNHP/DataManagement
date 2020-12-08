@@ -34,6 +34,11 @@ for in_feature, out_feature in zip(input_features, out_features):
     biotics_feature = os.path.join(biotics_database, in_feature)
     # create centroids for all biotics source features
     output = arcpy.FeatureToPoint_management(biotics_feature, out_feature, "INSIDE")
+    arcpy.AddField_management(output,"feature_type","TEXT","","",8,"Feature Type")
+    with arcpy.da.UpdateCursor(output,"feature_type") as cursor:
+        for row in cursor:
+            row[0] = out_feature
+            cursor.updateRow(row)
     # add path of temporary centroid feature classes to merge_features list
     merge_features.append(output)
 

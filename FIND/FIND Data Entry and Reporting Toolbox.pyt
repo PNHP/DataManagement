@@ -11,9 +11,12 @@
 
 import arcpy,time,datetime,os,sys,string
 from getpass import getuser
-from FIND_et_2019 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
+from FIND_et_2020 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
 
 arcpy.env.overwriteOutput = True
+
+et_list = sorted(list(et_all.values()))
+##et_list.insert(0," ")
 
 ######################################################################################################################################################
 ## Begin toolbox
@@ -21,10 +24,9 @@ arcpy.env.overwriteOutput = True
 
 class Toolbox(object):
     def __init__(self):
-        """Define the toolbox (the name of the toolbox is the name of the .pyt file)."""
-        self.label = "FIND Negative Data Entry Tool"
-        self.alias = "FIND Negative Data Entry Tool"
-        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader]
+        self.label = "FIND Data Entry and Reporting Toolbox"
+        self.alias = "FIND Data Entry and Reporting Toolbox"
+        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator]
 
 ######################################################################################################################################################
 ## Begin negative data entry tool
@@ -32,17 +34,26 @@ class Toolbox(object):
 
 class NegativeDataEntryTool(object):
     def __init__(self):
-        self.label = "FIND Negative Data Entry Tool"
+        self.label = "Negative Data Entry Tool"
         self.description = ""
         self.canRunInBackground = False
+        self.category = "Data Entry Tools"
 
     def getParameterInfo(self):
+        arcmap = arcpy.Parameter(
+            displayName = "Check box if you are using ArcMap 10.xx instead of ArcGIS Pro.",
+            name = "arcmap",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
         survey_site = arcpy.Parameter(
             displayName = "Selected Survey Site Layer",
             name = "survey_site",
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
+        survey_site.value = 'FIND\Survey Site'
 
         ref_code = arcpy.Parameter(
             displayName = "Reference Code for Selected Survey Site",
@@ -80,7 +91,7 @@ class NegativeDataEntryTool(object):
             parameterType = "Optional",
             direction = "Input")
 
-        params = [survey_site,ref_code,element_type,element_name,existing_eo,not_found_comm]
+        params = [arcmap,survey_site,ref_code,element_type,element_name,existing_eo,not_found_comm]
         return params
 
     def isLicensed(self):
@@ -88,18 +99,24 @@ class NegativeDataEntryTool(object):
 
     def updateParameters(self, params):
         # update choices for element name based on element type - uses the ET dictionaries
-        if params[2].value == "Insect":
-            params[3].filter.list = sorted(list(et_insect.values()))
-        elif params[2].value == "Lepidoptera":
-            params[3].filter.list = sorted(list(et_lep.values()))
-        elif params[2].value == "Other Invertebrate":
-            params[3].filter.list = sorted(list(et_invert.values()))
-        elif params[2].value == "Plant":
-            params[3].filter.list = sorted(list(et_plant.values()))
-        elif params[2].value == "Vertebrate Animal":
-            params[3].filter.list = sorted(list(et_vert.values()))
-        elif params[2].value == "Community":
-            params[3].filter.list = sorted(list(et_comm.values()))
+        if params[3].value == "Insect":
+            params[4].filter.list = sorted(list(et_insect.values()))
+        elif params[3].value == "Lepidoptera":
+            params[4].filter.list = sorted(list(et_lep.values()))
+        elif params[3].value == "Other Invertebrate":
+            params[4].filter.list = sorted(list(et_invert.values()))
+        elif params[3].value == "Plant":
+            params[4].filter.list = sorted(list(et_plant.values()))
+        elif params[3].value == "Vertebrate Animal":
+            params[4].filter.list = sorted(list(et_vert.values()))
+        elif params[3].value == "Community":
+            params[4].filter.list = sorted(list(et_comm.values()))
+
+        if params[0].value == True:
+            params[1].value = 'PNHP\FIND\Survey Site'
+        else:
+            params[1].value = 'FIND\Survey Site'
+
         return
 
     def updateMessages(self, params):
@@ -107,12 +124,12 @@ class NegativeDataEntryTool(object):
 
     def execute(self, params, messages):
         # define parameters
-        survey_site = params[0].valueAsText
-        ref_code = params[1].valueAsText
-        element_type = params[2].valueAsText
-        element_name = params[3].valueAsText
-        existing_eo = params[4].valueAsText
-        not_found_comm = params[5].valueAsText
+        survey_site = params[1].valueAsText
+        ref_code = params[2].valueAsText
+        element_type = params[3].valueAsText
+        element_name = params[4].valueAsText
+        existing_eo = params[5].valueAsText
+        not_found_comm = params[6].valueAsText
 
         # define element polygon layer and species list based on whether using ArcMap or ArcPro
         arc_prod = arcpy.GetInstallInfo()['ProductName']
@@ -215,7 +232,7 @@ class NegativeDataEntryTool(object):
             cursor.insertRow(values)
 
         # add status message for user
-        arcpy.AddMessage("One negative species list record and element polygon were added to the survey "+refcode+" for the element: "+element_name)
+        arcpy.AddMessage("One negative species list record and a negative element polygon were added to the survey "+refcode+" for the element: "+element_name+". DO NOT add this species record to your species list - it has already been added.")
         arcpy.AddWarning("Don't forget to mark your newly created element polygon Ready for DM once you make any necessary spatial or tabular updates.")
 
 ######################################################################################################################################################
@@ -224,11 +241,20 @@ class NegativeDataEntryTool(object):
 
 class PermissionDeniedTool(object):
     def __init__(self):
-        self.label = "FIND Permission Denied Data Entry Tool"
+        self.label = "Permission Denied Data Entry Tool"
+        self.alias = "Permission Denied Data Entry Tool"
         self.description = ""
         self.canRunInBackground = False
+        self.category = "Data Entry Tools"
 
     def getParameterInfo(self):
+        arcmap = arcpy.Parameter(
+            displayName = "Check box if you are using ArcMap 10.xx instead of ArcGIS Pro.",
+            name = "arcmap",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
         potential_site = arcpy.Parameter(
             displayName = "Selected Potential Survey Site Layer",
             name = "potential_site",
@@ -253,7 +279,7 @@ class PermissionDeniedTool(object):
             direction = "Input")
         target_elements.columns = [['GPString','Target Element Type'],['GPString','Target Element'],['GPString','EO ID (if known)']]
         target_elements.filters[0].list = ["Insect","Lepidoptera","Other Invertebrate","Plant","Vertebrate Animal","Community"]
-        target_elements.filters[1].list = sorted(list(et_all.values()))
+        target_elements.filters[1].list = et_list
 
         last_name = arcpy.Parameter(
             displayName = "Landowner Last Name",
@@ -270,7 +296,7 @@ class PermissionDeniedTool(object):
             direction = "Input")
 
         position = arcpy.Parameter(
-            displayName = "Landowner Position",
+            displayName = "Job Title of Landowner",
             name = "position",
             datatype = "GPString",
             parameterType = "Optional",
@@ -346,13 +372,17 @@ class PermissionDeniedTool(object):
             parameterType = "Required",
             direction = "Input")
 
-        params = [potential_site,ref_code,target_elements,last_name,first_name,position,institution,address,city,state,zip_code,landline,mobile,email,maj_landowner,contact_comm]
+        params = [arcmap,potential_site,ref_code,target_elements,last_name,first_name,position,institution,address,city,state,zip_code,landline,mobile,email,maj_landowner,contact_comm]
         return params
 
     def isLicensed(self):
         return True
 
     def updateParameters(self, params):
+        if params[0] == False:
+            params[1].value = 'FIND\Potential Survey Site'
+        elif params[0] == True:
+            params[1].value = 'PNHP\FIND\Potential Survey Site'
         return
 
     def updateMessages(self, params):
@@ -360,22 +390,22 @@ class PermissionDeniedTool(object):
 
     def execute(self, params, messages):
         # define parameters
-        potential_site = params[0].valueAsText
-        ref_code = params[1].valueAsText
-        target_elements = params[2].value
-        last_name = params[3].valueAsText
-        first_name = params[4].valueAsText
-        position = params[5].valueAsText
-        institution = params[6].valueAsText
-        address = params[7].valueAsText
-        city = params[8].valueAsText
-        state = params[9].valueAsText
-        zip_code = params[10].valueAsText
-        landline = params[11].valueAsText
-        mobile = params[12].valueAsText
-        email = params[13].valueAsText
-        maj_landowner = params[14].valueAsText
-        contact_comm = params[15].valueAsText
+        potential_site = params[1].valueAsText
+        ref_code = params[2].valueAsText
+        target_elements = params[3].value
+        last_name = params[4].valueAsText
+        first_name = params[5].valueAsText
+        position = params[6].valueAsText
+        institution = params[7].valueAsText
+        address = params[8].valueAsText
+        city = params[9].valueAsText
+        state = params[10].valueAsText
+        zip_code = params[11].valueAsText
+        landline = params[12].valueAsText
+        mobile = params[13].valueAsText
+        email = params[14].valueAsText
+        maj_landowner = params[15].valueAsText
+        contact_comm = params[16].valueAsText
 
         # define element polygon layer and species list based on whether using ArcMap or ArcPro
         arc_prod = arcpy.GetInstallInfo()['ProductName']
@@ -478,7 +508,7 @@ class PermissionDeniedTool(object):
                 elems.append(element_name)
 
                 # add status message for user
-            arcpy.AddMessage(str(len(target_elements))+" needs found species list record(s) and needs found element polygon(s) were added to the proposed survey "+site_name+" for the element(s): "+', '.join(elems))
+            arcpy.AddMessage(str(len(target_elements))+" needs found species list record(s) and negative element polygon(s) were added to the proposed survey "+site_name+" for the element(s): "+', '.join(elems))
             arcpy.AddWarning("Don't forget to mark your newly created needs found element polygon(s) Ready for DM once you make any necessary spatial or tabular updates.")
 
         else:
@@ -491,10 +521,14 @@ class PermissionDeniedTool(object):
 class ListLoader(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "ListLoader PRO for FIND"
-        self.alias = "ListLoader PRO for FIND"
-        self.description = "Seamlessly loads species list data from ListMaster to FIND in ArcGIS Pro."
+        self.label = "ListLoader for FIND"
+        self.alias = "ListLoader for FIND"
+        self.description = "Seamlessly loads species list data from ListMaster to FIND in ArcGIS Pro or ArcMap."
         self.canRunInBackground = False
+        self.category = "Data Entry Tools"
+
+    def getParameterInfo(self):
+        return True
 
     def execute(self, parameters, messages):
         # define species list Excel file that was exported from ListMaster and the Species List table name
@@ -502,7 +536,7 @@ class ListLoader(object):
         sp_table = "FIND.DBO.SpeciesList"
 
         # convert the excel species list into a temporary ArcGIS table
-        table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","table"), "out_SpeciesList")
+        table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","tabled"), "out_SpeciesList")
 
         # get list of fields from species list table
         dsc = arcpy.Describe(table)
@@ -517,3 +551,211 @@ class ListLoader(object):
                     arcpy.AddMessage(row)
                     iCur.insertRow(row)
         return
+
+######################################################################################################################################################
+## Begin Needs Attention Reporting Tool
+######################################################################################################################################################
+
+class NeedsAttention(object):
+    def __init__(self):
+        self.label = "Needs Attention Report"
+        self.alias = "Needs Attention Report"
+        self.description = "Run this tool to generate a report of your incomplete records and make a selection on those records in the Element and Community Point, Line, Polygon, and Survey Site layers."
+        self.canRunInBackground = False
+        self.category = "QC and Reporting Tools"
+
+    def getParameterInfo(self):
+        last_name = arcpy.Parameter(
+            displayName = "What's your last name?",
+            name = "last_name",
+            datatype = "GPString",
+            parameterType = "Required",
+            direction = "Input")
+
+        params = [last_name]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        last_name = params[0].valueAsText
+        # establish location of .txt file report in same folder as script location
+        txt_file = os.path.join(os.path.dirname(__file__),'FIND_NeedsAttentionReport.txt')
+
+        # define name of parameters based on ArcGIS Pro or ArcMap
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            el_pt = r'FIND\Element Point'
+            el_ln = r'FIND\Element Line'
+            el_py = r'FIND\Element Polygon'
+            cm_pt = r'FIND\Community or Other Point'
+            cm_py = r'FIND\Community or Other Polygon'
+            survey_site = r'FIND\Survey Site'
+        else:
+            el_pt = r'PNHP\FIND\Element Point'
+            el_ln = r'PNHP\FIND\Element Line'
+            el_py = r'PNHP\FIND\Element Polygon'
+            cm_pt = r'PNHP\FIND\Community or Other Point'
+            cm_py = r'PNHP\FIND\Community or Other Polygon'
+            survey_site = r'PNHP\FIND\Survey Site'
+
+        # get reference code initials from last name
+        refcode_init = last_name.upper()[0:3]
+
+        # print header to txt file
+        now = datetime.datetime.now()
+        dt_string = now.strftime("%m/%d/%y %I:%M:%p")
+        with open(txt_file,'w') as f:
+            f.write("################################################################"+"\n")
+            f.write('\n')
+            f.write("Welcome to the FIND Record Report!"+'\n')
+            f.write("Updated: "+dt_string+'\n')
+            f.write("\n")
+            f.write("################################################################"+"\n")
+
+        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
+        labels = ["Survey Site","Element Points","Element Lines","Element Polygons","Community Points","Community Polygons"]
+
+        for l in listo:
+            desc = arcpy.Describe(l)
+            if desc.FIDSet == '':
+                pass
+            else:
+                arcpy.AddWarning("Please clear all of your selections and try again.")
+                sys.exit()
+
+        # loop through layers to check for incomplete records and print results
+        for l,x in zip(listo,labels):
+            arcpy.SelectLayerByAttribute_management(l,"NEW_SELECTION","((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))
+            count = len(list(i for i in arcpy.da.SearchCursor(l, ["*"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))))
+            if count > 0:
+                with open(txt_file,"a") as f:
+                    f.write("\n")
+                    f.write("You have "+str(count)+" incomplete records in the "+x+" layer:" + "\n")
+                    f.write("\n")
+                    f.write("Reference Code, DM Status, Created User, Created Date" + "\n")
+                arcpy.AddWarning("You have "+str(count)+" incomplete records in the "+x+" layer.")
+                with arcpy.da.SearchCursor(l,["refcode","dm_stat","created_user","created_date"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name)) as cursor:
+                    for row in cursor:
+                        with open(txt_file,'a') as f:
+                            f.write(",  ".join(str(i) for i in row))
+                            f.write("\n")
+            else:
+                with open(txt_file,'a') as f:
+                    f.write('\n')
+                    f.write("You do not have any incomplete records in the "+x+" layer. Congratulations!"+"\n")
+                arcpy.AddWarning("You do not have any incomplete records in the "+x+" layer. Congratulations!")
+
+            with open(txt_file,'a') as f:
+                f.write("\n")
+                f.write("################################################################"+"\n")
+
+        os.startfile(txt_file)
+
+######################################################################################################################################################
+## Begin Needs Attention Reporting Tool
+######################################################################################################################################################
+
+class SpeciesLocator(object):
+    def __init__(self):
+        self.label = "Species Locator Tool"
+        self.alias = "Species Locator Tool"
+        self.description = "Run this tool to select all survey site polygon within which the input species has/have been found."
+        self.canRunInBackground = False
+        self.category = "QC and Reporting Tools"
+
+    def getParameterInfo(self):
+        species = arcpy.Parameter(
+            displayName = "What species would you like to locate?",
+            name = "species",
+            datatype = "GPString",
+            multiValue = False,
+            parameterType = "Required",
+            direction = "Input")
+        species.filter.list = sorted(list(et_all.values()))
+
+        params = [species]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        species = params[0].valueAsText
+
+        # define name of parameters based on ArcGIS Pro or ArcMap
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            el_pt = r'FIND\Element Point'
+            el_ln = r'FIND\Element Line'
+            el_py = r'FIND\Element Polygon'
+            cm_pt = r'FIND\Community or Other Point'
+            cm_py = r'FIND\Community or Other Polygon'
+            survey_site = r'FIND\Survey Site'
+        else:
+            el_pt = r'PNHP\FIND\Element Point'
+            el_ln = r'PNHP\FIND\Element Line'
+            el_py = r'PNHP\FIND\Element Polygon'
+            cm_pt = r'PNHP\FIND\Community or Other Point'
+            cm_py = r'PNHP\FIND\Community or Other Polygon'
+            survey_site = r'PNHP\FIND\Survey Site'
+
+        species_list = r'FIND.DBO.SpeciesList'
+
+        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
+
+        for l in listo:
+            desc = arcpy.Describe(l)
+            if desc.FIDSet == '':
+                pass
+            else:
+                arcpy.AddWarning("Please clear all of your selections and try again.")
+                sys.exit()
+
+
+        d = et_all
+        # get element name from dictionary
+        key_list = list(d.keys())
+        val_list = list(d.values())
+        elem_list = key_list[val_list.index(species)]
+
+        spec_presence = sorted({row[0] for row in arcpy.da.SearchCursor(species_list,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        el_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N' and row[2]!='No'})
+        el_ln_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_ln,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        el_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        cm_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        cm_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+
+        refcode_list = spec_presence+el_pt_presence+el_ln_presence+el_py_presence+cm_pt_presence+cm_py_presence
+
+        if len(refcode_list)==0:
+            arcpy.AddWarning("Your selected species was not found in any survey site :(")
+            sys.exit()
+        elif len(refcode_list)==1:
+            where_clause = "refcode = '{}'".format(''.join(refcode_list))
+        else:
+            where_clause = 'refcode IN {0}'.format(tuple(refcode_list))
+
+        arcpy.SelectLayerByAttribute_management(survey_site,"NEW_SELECTION",where_clause)
+
+        arcpy.AddMessage("The survey sites within which "+ species+ " has been found include: " + ', '.join(refcode_list))
+        arcpy.AddMessage("The survey site(s) where " + species + " was found is(are) now selected.")
+
+
