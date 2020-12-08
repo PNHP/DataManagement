@@ -66,7 +66,7 @@ class TerrestrialGrouping(object):
         species_code.parameterDependencies = [in_points.name]
 
         lu_separation = arcpy.Parameter(
-            displayName = "Separation Distance Field",
+            displayName = "Separation Distance Field (Units must be in kilometers)",
             name = "lu_separation",
             datatype = "Field",
             parameterType = "Required",
