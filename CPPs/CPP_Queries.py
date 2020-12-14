@@ -25,10 +25,14 @@ BioticsGDB = r'W:\Heritage\Heritage_Data\Biotics_datasets.gdb'
 outPath = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_EOReps\\CPP_EOReps.gdb'
 reportPath = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_EOReps'
 accessdb = r'P:\Conservation Programs\Natural Heritage Program\Data Management\ACCESS databases\Processing_database\DM_processing.accdb'
-scratch = r'H:\temp\temp.gdb'
+scratch = r'in_memory'
 
-date1 = raw_input("Enter the date after which you want to include records (MM/DD/YYYY)")
-date2 = raw_input("Enter the date before which you want to include records (MM/DD/YYYY)")
+reporttype = raw_input("Which report do you want to run? (enter 'EO change' or 'Outstanding CPP")
+if reporttype.lower() == 'eo change':
+    date1 = raw_input("Enter the date after which you want to include records (MM/DD/YYYY)")
+    date2 = raw_input("Enter the date before which you want to include records (MM/DD/YYYY)")
+else:
+    pass
 
 #connect to cpp sqlite database to create spec id dictionary
 conn = sqlite3.connect(cpp_db)
@@ -111,9 +115,9 @@ arcpy.DeleteField_management(cpp_eo_ptreps, dropFields)
 arcpy.TableToTable_conversion(cpp_eo_ptreps, outPath, 'cpp_qualify_EO_'+date)
 
 #add processing DB fields to cpp_eo_ptreps layer in ArcMap
-f_name = ["date_created","mapper_status","description"]
-f_length = ["",12,500]
-f_type = ["DATE","TEXT","TEXT"]
+f_name = ["date_created","mapper_status","description","county"]
+f_length = ["",25,500,75]
+f_type = ["DATE","TEXT","TEXT","TEXT"]
 for n,t,l in zip(f_name,f_type,f_length):
     arcpy.AddField_management(cpp_eo_ptreps,n,t,"","",l)
 
@@ -121,32 +125,13 @@ for n,t,l in zip(f_name,f_type,f_length):
 print("Connecting to processing DB")
 conn = pyodbc.connect('Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ='+accessdb+r';')
 cursor = conn.cursor()
-cursor.execute("SELECT EOID, [Date created, updated or deleted], [Mapper - new, update, or deletion], [Brief description] FROM [EO log] WHERE EOID IS NOT NULL AND [Mapper - new, update, or deletion] <> 'NA' AND [Date created, updated or deleted] >= #{0}# AND [Date created, updated or deleted] <= #{1}#".format(date1, date2))
-print("The following records were fetched:")
-for row in cursor.fetchall():
-    print(row)
+cursor.execute("SELECT EOID, [Date created, updated or deleted], [Mapper - new, update, or deletion], [Brief description], County FROM [EO log] WHERE EOID IS NOT NULL AND [Mapper - new, update, or deletion] <> 'NA' AND [Date created, updated or deleted] >= #{0}# AND [Date created, updated or deleted] <= #{1}#".format(date1, date2))
+records = cursor.fetchall()
 
 #create dictionary with fetched records
 eolog_dict = {}
-for row in cursor.fetchall():
+for row in records:
     eolog_dict[row[0]] = row[1:]
-
-#create list of EOIDs in cpp_eo_ptreps layer
-with arcpy.da.SearchCursor(cpp_eo_ptreps,"EO_ID") as cursor:
-    qualified_eos = sorted({row[0] for row in cursor})
-
-#if EO qualifies for CPP, fill with EO log information. Otherwise, delete record.
-with arcpy.da.UpdateCursor(cpp_eo_ptreps,["EO_ID","date_created","mapper_status","description"]) as cursor:
-    for row in cursor:
-        for k,v in eolog_dict.items():
-            if int(k) in qualified_eos:
-                if str(k)==str(int(row[0])):
-                    row[1]=v[0]
-                    row[2]=v[1]
-                    row[3]=v[2]
-                    cursor.updateRow(row)
-            else:
-                cursor.deleteRow()
 
 #delete records that are not in EO log records
 eolog_list = list(eolog_dict.keys())
@@ -156,6 +141,17 @@ with arcpy.da.UpdateCursor(cpp_eo_ptreps,"EO_ID") as cursor:
             pass
         else:
             cursor.deleteRow()
+
+#if EO qualifies for CPP, fill with EO log information. Otherwise, delete record.
+with arcpy.da.UpdateCursor(cpp_eo_ptreps,["EO_ID","date_created","mapper_status","description","county"]) as cursor:
+    for row in cursor:
+        for k,v in eolog_dict.items():
+            if str(k)==str(int(row[0])):
+                row[1]=v[0]
+                row[2]=v[1]
+                row[3]=v[2]
+                row[4]=v[3]
+                cursor.updateRow(row)
 
 #create Excel spreadsheet of returned records
 arcpy.TableToExcel_conversion(cpp_eo_ptreps,os.path.join(reportPath, 'CPP_EO_Changes_'+date1.replace("/","")+"_"+date2.replace("/","")+".xls"))

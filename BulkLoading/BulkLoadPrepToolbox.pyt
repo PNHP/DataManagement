@@ -95,7 +95,7 @@ class TerrestrialGrouping(object):
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
-        eo_reps.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_reps"
+##        eo_reps.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_reps"
 
         eo_id_field = arcpy.Parameter(
             displayName = "EOID Field used in EO Reps Layer",
@@ -112,7 +112,7 @@ class TerrestrialGrouping(object):
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
-        eo_sourcept.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcept"
+##        eo_sourcept.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcept"
 
         eo_sourceln = arcpy.Parameter(
             displayName = "Existing Source Line Layer",
@@ -120,7 +120,7 @@ class TerrestrialGrouping(object):
             datatype = "GPFeatureLayer",
             parameterType = "Optional",
             direction = "Input")
-        eo_sourceln.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourceln"
+##        eo_sourceln.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourceln"
 
         eo_sourcepy = arcpy.Parameter(
             displayName = "Existing Source Polygon Layer",
@@ -128,7 +128,7 @@ class TerrestrialGrouping(object):
             datatype = "GPFeatureLayer",
             parameterType = "Optional",
             direction = "Input")
-        eo_sourcepy.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcepy"
+##        eo_sourcepy.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_sourcepy"
 
         sf_id_field = arcpy.Parameter(
             displayName = "SFID Field used in Source Points, Lines, and Polygon Layers",
