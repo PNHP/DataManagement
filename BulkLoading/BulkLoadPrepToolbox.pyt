@@ -6,7 +6,7 @@
 # Version:      1.0
 # Author:       MMOORE, Pennsylvania Natural Heritage Program
 # Created:      02/18/2018
-# Updated:      01/02/2018
+# Updated:      01/20/2021
 # Future Ideas:
 #-------------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ class TerrestrialGrouping(object):
         species_code.parameterDependencies = [in_points.name]
 
         lu_separation = arcpy.Parameter(
-            displayName = "Separation Distance Field (Units must be in kilometers)",
+            displayName = "Separation Distance Field (units must be in kilometers)",
             name = "lu_separation",
             datatype = "Field",
             parameterType = "Required",
@@ -82,7 +82,7 @@ class TerrestrialGrouping(object):
         loc_uncert.parameterDependencies = [in_points.name]
 
         loc_uncert_dist = arcpy.Parameter(
-            displayName = "Locational Uncertainty Distance Field (Units must be meters)",
+            displayName = "Locational Uncertainty Distance Field (units must be meters)",
             name = "loc_uncert_dist",
             datatype = "Field",
             parameterType = "Optional",
@@ -98,7 +98,7 @@ class TerrestrialGrouping(object):
 ##        eo_reps.value = r"W:\Heritage\Heritage_Data\biotics_datasets.gdb\eo_reps"
 
         eo_id_field = arcpy.Parameter(
-            displayName = "EOID Field used in EO Reps Layer",
+            displayName = "EO ID Field used in EO Reps Layer",
             name = "eo_id_field",
             datatype = "Field",
             parameterType = "Required",
@@ -167,7 +167,7 @@ class TerrestrialGrouping(object):
         return
 
     def execute(self, params, messages):
-        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SFID and EOID grouping variable to observations based on separation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
+        arcpy.AddMessage("""Welcome to the Source Feature and EO Assigner! This tool is designed to prepare a feature class or shapefile for bulk load into Biotics by assigning an existing or new SF and EO ID grouping variable to observations based on separation distance. This used to be done manually, so sit back and enjoy all the other work you can be doing instead of this!""")
 
         in_points = params[0].valueAsText
         in_lines = params[1].valueAsText
@@ -187,8 +187,8 @@ class TerrestrialGrouping(object):
 
         arcpy.env.workspace = "in_memory"
 
-        arcpy.AddMessage("Preparing input data")
-        #prepare single fc from biotics sf fcs
+        arcpy.AddMessage("Preparing input data...")
+        #if using sf lines and polygons, all layers are buffered by 1m and merged. Otherwise, just points are buffered by 1m.
         sfs_in = [eo_sourcept]
         sfs_out = ["eo_sourcept1"]
         if str(sf_include) == "True":
@@ -205,6 +205,7 @@ class TerrestrialGrouping(object):
         sf_merge = arcpy.Merge_management(sfs_out, "sf_merge")
         sf_lyr = arcpy.MakeFeatureLayer_management(sf_merge, "sf_lyr")
 
+        #make list of all input layers given by user
         data_in = []
         data_out = []
         if in_points:
@@ -217,6 +218,7 @@ class TerrestrialGrouping(object):
             data_in.append(in_poly)
             data_out.append("polys")
 
+        #add join id to input features, buffer by 1m, and merge layers
         join_id = 1
         for i,o in zip(data_in,data_out):
             arcpy.AddField_management(i,"join_id","TEXT")
@@ -225,29 +227,7 @@ class TerrestrialGrouping(object):
                     row[0]=str(join_id)
                     cursor.updateRow(row)
                     join_id+=1
-            arcpy.AddField_management(i,"buff_dist","FLOAT")
-            if loc_uncert_dist:
-                with arcpy.da.UpdateCursor(i,["buff_dist",loc_uncert,loc_uncert_dist]) as cursor:
-                    for row in cursor:
-                        if row[1] is None:
-                            row[0] = 1
-                            cursor.updateRow(row)
-                        elif row[1].lower() != "estimated":
-                            row[0] = 1
-                            cursor.updateRow(row)
-                        elif row[1].lower() == "estimated":
-                            row[0] = int(float(row[2])) + 1
-                            cursor.updateRow(row)
-                        else:
-                            row[0] = 1
-                            cursor.updateRow(row)
-            else:
-                with arcpy.da.UpdateCursor(i,"buff_dist") as cursor:
-                    for row in cursor:
-                        row[0] = 1
-                        cursor.updateRow(row)
-            arcpy.Buffer_analysis(i,o,"buff_dist")
-
+            arcpy.Buffer_analysis(i,o,1)
         data_merge = arcpy.Merge_management(data_out,"data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
@@ -285,11 +265,14 @@ class TerrestrialGrouping(object):
         word_index = 1
         observation_num = 1
 
-        arcpy.AddMessage("Beginning to assign EO IDs")
+        arcpy.AddMessage("Assigning EO IDs...")
         #get total records in data_lyr for progress reporting messages
         total_obs = arcpy.GetCount_management(data_lyr)
         #start assigning loop
         search_fields = [objectid_field, "EO_ID", "EO_NEW", species_code, lu_separation]
+        if loc_uncert_dist:
+            search_fields.append(loc_uncert)
+            search_fields.append(loc_uncert_dist)
         with arcpy.da.SearchCursor(data_lyr, search_fields) as cursor:
             for row in cursor:
                 objectid = row[0]
@@ -299,7 +282,18 @@ class TerrestrialGrouping(object):
                     pass
                 else:
                     sname = row[3]
-                    distance = str(row[4]*1000)+" METERS"
+                    #separation distance plus 8m for mmu (in addition to the 1m buffer on input data)
+                    distance = (row[4]*1000)+8
+                    #add LU distance if LU type is estimated
+                    if loc_uncert_dist:
+                        if row[5].lower() == "estimated":
+                            distance = distance+row[6]
+                        else:
+                            pass
+                    else:
+                        pass
+                    #convert distance into string value as needed for select by tool
+                    distance = str(distance)+" METERS"
 
                     #select feature and assign sname and separation distance variables
                     arcpy.SelectLayerByAttribute_management(data_lyr, "NEW_SELECTION", "{}={}".format(objectid_field,objectid))
@@ -344,7 +338,7 @@ class TerrestrialGrouping(object):
                 observation_num += 1
                 arcpy.SelectLayerByAttribute_management(data_lyr, "CLEAR_SELECTION")
 
-        arcpy.AddMessage("Beginning to assign SF IDs")
+        arcpy.AddMessage("Assigning SF IDs...")
         observation_num = 1
         search_fields = [objectid_field, "SF_ID", "SF_NEW", species_code]
         with arcpy.da.SearchCursor(data_lyr, search_fields) as cursor:

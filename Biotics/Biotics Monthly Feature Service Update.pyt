@@ -68,7 +68,7 @@ class BioticsUpdate(object):
         system_username = getuser().upper()
 
         working_db = arcpy.CreateDatabaseConnection_management("H:","PNHP.sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL","DBO.Working")
-        arcpy.CreateVersion_management(working_db,"DBO.Working",username+"_TEMP","PUBLIC")
+        arcpy.CreateVersion_management(working_db,"DBO.Working","mmoore_TEMP","PUBLIC")
         pnhp_db = arcpy.CreateDatabaseConnection_management("H:","PNHP_"+username+".sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL",'"WPC\\'+system_username+'".'+username+"_TEMP")
 
         biotics_db_path = r"PNHP.DBO.Biotics\\PNHP.DBO."
@@ -113,10 +113,10 @@ class BioticsUpdate(object):
         edit.stopOperation()
         edit.stopEditing(True)
 
-        arcpy.ReconcileVersions_management(pnhp_db,"ALL_VERSIONS","DBO.Working",'"WPC\\'+system_username+'".'+username+"_TEMP","LOCK_ACQUIRED","#","#","FAVOR_EDIT_VERSION","POST","DELETE_VERSION","#","#","DO_NOT_RECONCILE")
+        arcpy.ReconcileVersions_management(pnhp_db,"ALL_VERSIONS","DBO.Working",'"WPC\\'+system_username+'".'+"mmoore_TEMP","LOCK_ACQUIRED","#","#","FAVOR_EDIT_VERSION","POST","DELETE_VERSION","#","#","DO_NOT_RECONCILE")
 
         arcpy.Delete_management(pnhp_db)
         del(pnhp_db)
-        arcpy.DeleteVersion_management(working_db,'"WPC\\'+system_username+'".'+username+"_TEMP")
+        arcpy.DeleteVersion_management(working_db,'"WPC\\'+system_username+'".'+"mmoore_TEMP")
         arcpy.Delete_management(working_db)
         working_db = arcpy.CreateDatabaseConnection_management("H:","PNHP.sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL","DBO.Working")

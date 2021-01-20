@@ -167,7 +167,7 @@ class Toolbox(object):
     def __init__(self):
         self.label = "CPP Tools"
         self.alias = "CPP Tools"
-        self.tools = [SetDefQuery,BufferSFs,PlantSupporting,BaldEagleCore,BaldEagleSupporting] # <<<<<< ADD TOOLS HERE >>>>>>>>
+        self.tools = [SetDefQuery,BufferSFs,BufferCore,PlantSupporting,BaldEagleCore,BaldEagleSupporting] # <<<<<< ADD TOOLS HERE >>>>>>>>
 
 ######################################################################################################################################################
 ##
@@ -194,7 +194,7 @@ class SetDefQuery(object):
         for lyr in m.listLayers("eo_*"):
             lyr.definitionQuery = "EO_ID = {}".format(eoid)
         for lyr in m.listLayers("CPP *"):
-            lyr.definitionQuery = "EO_ID = {}".format(eoid)
+            lyr.definitionQuery = "EO_ID = {} OR EO_ID IS NULL".format(eoid)
 ##        lyr = m.listLayers("eo_ptreps")[0]
 ##        view = aprx.activeView()
 
@@ -228,12 +228,47 @@ class BufferSFs(object):
         srcfeatures = ["Biotics\\eo_sourcept","Biotics\\eo_sourceln","Biotics\\eo_sourcepy"]
 
         geom = bufferFeatures(srcfeatures,eoid,buff_dist)
-        query = "EO_ID = {}".format(eoid)
 
         values = calc_attr_core(eoid,eo_ptreps,specID)
         values.append(geom)
         fields = ["SNAME","EO_ID","DrawnBy","DrawnDate","DrawnNotes","Status","SpecID","ELSUBID","BioticsExportDate","SHAPE@"]
         with arcpy.da.InsertCursor(cpp_core,fields) as cursor:
+            cursor.insertRow(values)
+
+######################################################################################################################################################
+##
+######################################################################################################################################################
+
+class BufferCore(object):
+    def __init__(self):
+        self.label = "Create CPP Supporting from Buffered Core"
+        self.description = ""
+        self.canRunInBackground = False
+        self.category = "General CPP Tools"
+        self.params = [
+        parameter("Selected CPP Core Layer","cpp_core","GPFeatureLayer","CPPEdit\\CPP Core"),
+        parameter("Buffer Distance","buff_dist","GPLinearUnit"),
+        parameter("Supporting CPP Layer","slp","GPFeatureLayer","CPPEdit\\CPP Supporting")]
+
+    def getParameterInfo(self):
+        return self.params
+
+    def execute(self, params, messages):
+        # define parameters
+        cpp_core = params[0].valueAsText
+        buff_dist = params[1].valueAsText
+        cpp_supporting = params[2].valueAsText
+
+        core_lyr = arcpy.MakeFeatureLayer_management(cpp_core,"core_lyr")
+        buff = arcpy.Buffer_analysis(core_lyr, "memory\\core_buff", buff_dist)
+        with arcpy.da.SearchCursor(buff,'SHAPE@') as cursor:
+            for row in cursor:
+                geom = row[0]
+
+        values = calc_attr_slp(cpp_core)
+        values.append(geom)
+        fields = ["SNAME","EO_ID","DrawnBy","DrawnDate","DrawnNotes","Project","Status","SpecID","ELSUBID","BioticsExportDate","SHAPE@"]
+        with arcpy.da.InsertCursor(cpp_supporting,fields) as cursor:
             cursor.insertRow(values)
 
 ######################################################################################################################################################

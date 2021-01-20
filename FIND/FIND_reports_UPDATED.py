@@ -69,4 +69,5 @@ arcpy.DeleteField_management(merge, dropFields)
 
 arcpy.JoinField_management(merge,"elem_name",et,"ELSUBID",["ELCODE","SNAME","SCOMNAME"])
 
+arcpy.TableToTable_conversion(merge, r"H:\\temp\\temp.gdb","MERGE_TEMP")
 
