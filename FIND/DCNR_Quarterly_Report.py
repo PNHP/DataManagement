@@ -42,17 +42,17 @@ else:
 env.workspace = r'in_memory'
 
 # file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND.DBO.el_pt", "FIND.DBO.el_line","FIND.DBO.el_poly", "FIND.DBO.comm_poly",
-"FIND.DBO.comm_pt",  "FIND.DBO.survey_poly"]
+input_features = ["FIND2021.DBO.el_pt", "FIND2021.DBO.el_line","FIND2021.DBO.el_poly", "FIND2021.DBO.comm_poly",
+"FIND2021.DBO.comm_pt",  "FIND2021.DBO.survey_poly"]
 
 # file names that are used for temporary element tables
 elementTables = ["element_point", "element_line", "element_poly", "community_poly",
 "community_point", "survey_poly"]
 
 # path to FIND enterprise database
-elementGDB = r"Database Connections\\FIND.Working.pgh-gis0.sde"
+elementGDB = r"Database Connections\\FIND2021.Working.pgh-gis0.sde"
 
-reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2020\Reports\DCNR Quarterly FIND Reports'
+reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2021\Reports\DCNR Quarterly FIND Reports'
 
 def elementType():
     '''function that assigns element type to all features based on name of

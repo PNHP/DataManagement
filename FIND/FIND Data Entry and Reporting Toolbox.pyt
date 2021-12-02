@@ -1,9 +1,12 @@
-#-------------------------------------------------------------------------------
-# Name:        FIND Negative Data Entry Tool (FINDNegativeDataEntryTool.pyt)
-# Purpose:
-# Author:      mmoore
-# Created:     27/01/2020
-#-------------------------------------------------------------------------------
+"""-------------------------------------------------------------------------------
+Name: FIND Data Entry and Reporting Toolbox
+Purpose: Provide a suite of tools to aid in FIND data entry and reporting.
+Author: mmoore
+Created: 27/01/2020
+Updated: 03/30/2021
+Update Notes: 03/2021 - added Parcel and Contact Creator Tool, updated path names to FIND2021 feature service
+12/2/2021 - BUG FIX: updated FIND table paths to be dependent on Pro version to solve issue of whether tables are nested under feature service or in standalone table section
+#-------------------------------------------------------------------------------"""
 
 ######################################################################################################################################################
 ## Import packages and define environment settings
@@ -11,12 +14,14 @@
 
 import arcpy,time,datetime,os,sys,string
 from getpass import getuser
-from FIND_et_2020 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
+from FIND_et_2021 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
 
 arcpy.env.overwriteOutput = True
 
 et_list = sorted(list(et_all.values()))
 ##et_list.insert(0," ")
+
+pro_version = float(arcpy.GetInstallInfo()['Version'])
 
 ######################################################################################################################################################
 ## Begin toolbox
@@ -26,7 +31,7 @@ class Toolbox(object):
     def __init__(self):
         self.label = "FIND Data Entry and Reporting Toolbox"
         self.alias = "FIND Data Entry and Reporting Toolbox"
-        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator]
+        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator,ParcelContactCreator]
 
 ######################################################################################################################################################
 ## Begin negative data entry tool
@@ -137,7 +142,10 @@ class NegativeDataEntryTool(object):
             elem_poly = r"FIND\Element Polygon"
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
-        species_table = r"FIND.DBO.SpeciesList"
+        if pro_version < 2.9:
+            species_table = r"FIND2021.DBO.SpeciesList"
+        else:
+            species_table = r"FIND\\FIND2021.DBO.SpeciesList"
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(survey_site)
@@ -248,13 +256,6 @@ class PermissionDeniedTool(object):
         self.category = "Data Entry Tools"
 
     def getParameterInfo(self):
-        arcmap = arcpy.Parameter(
-            displayName = "Check box if you are using ArcMap 10.xx instead of ArcGIS Pro.",
-            name = "arcmap",
-            datatype = "GPBoolean",
-            parameterType = "optional",
-            direction = "Input")
-
         potential_site = arcpy.Parameter(
             displayName = "Selected Potential Survey Site Layer",
             name = "potential_site",
@@ -263,9 +264,9 @@ class PermissionDeniedTool(object):
             direction = "Input")
         potential_site.value = "FIND\Potential Survey Site"
 
-        ref_code = arcpy.Parameter(
+        refcode = arcpy.Parameter(
             displayName = "Reference Code for Selected Survey Site (should start with P for personal reference)",
-            name = "ref_code",
+            name = "refcode",
             datatype = "GPString",
             parameterType = "Required",
             direction = "Input")
@@ -281,108 +282,172 @@ class PermissionDeniedTool(object):
         target_elements.filters[0].list = ["Insect","Lepidoptera","Other Invertebrate","Plant","Vertebrate Animal","Community"]
         target_elements.filters[1].list = et_list
 
-        last_name = arcpy.Parameter(
-            displayName = "Landowner Last Name",
-            name = "last_name",
-            datatype = "GPString",
-            parameterType = "Optional",
-            direction = "Input")
-
         first_name = arcpy.Parameter(
-            displayName = "Landowner First Name",
+            displayName = "Landowner/Contact First Name",
             name = "first_name",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
+        last_name = arcpy.Parameter(
+            displayName = "Landowner/Contact Last Name",
+            name = "last_name",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
         position = arcpy.Parameter(
-            displayName = "Job Title of Landowner",
+            displayName = "Contact position or relationship to parcel",
             name = "position",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
         institution = arcpy.Parameter(
-            displayName = "Landowner Institution",
+            displayName = "Institution or Organization",
             name = "institution",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
         address = arcpy.Parameter(
-            displayName = "Landowner Street Address",
+            displayName = "Street Address",
             name = "address",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
         city = arcpy.Parameter(
-            displayName = "Landowner City",
+            displayName = "City",
             name = "city",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
         state = arcpy.Parameter(
-            displayName = "Landowner State",
+            displayName = "State",
             name = "state",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
         zip_code = arcpy.Parameter(
-            displayName = "Landowner Zip Code",
+            displayName = "Zip Code",
             name = "zip_code",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
-
-        landline = arcpy.Parameter(
-            displayName = "Landowner Landline Phone (no symbols)",
-            name = "landline",
-            datatype = "GPString",
-            parameterType = "Optional",
-            direction = "Input")
-
         mobile = arcpy.Parameter(
-            displayName = "Landowner Mobile Phone (no symbols)",
+            displayName = "Mobile Phone (no symbols)",
             name = "mobile",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
+        landline = arcpy.Parameter(
+            displayName = "Home Phone (no symbols)",
+            name = "landline",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
         email = arcpy.Parameter(
-            displayName = "Landowner E-mail Address",
+            displayName = "Email Address",
             name = "email",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
-        maj_landowner = arcpy.Parameter(
-            displayName = "Is this landowner the majority landowner?",
-            name = "maj_landowner",
+        interaction = arcpy.Parameter(
+            displayName = "Interaction Type",
+            name = "interaction",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        interaction.filter.type = "ValueList"
+        interaction.filter.list = ["Telephone","Email","In-Person","Letter or Postcard","Other"]
+
+        pref_interaction = arcpy.Parameter(
+            displayName = "Preferred Interaction Type",
+            name = "pref_interaction",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        pref_interaction.filter.type = "ValueList"
+        pref_interaction.filter.list = ["Telephone","Email","In-Person","Letter or Postcard","Other"]
+
+        start_date = arcpy.Parameter(
+            displayName = "Interaction Start Date",
+            name = "start_date",
+            datatype = "GPDate",
+            parameterType = "Optional",
+            direction = "Input")
+
+        end_date = arcpy.Parameter(
+            displayName = "Interaction End Date",
+            name = "end_date",
+            datatype = "GPDate",
+            parameterType = "Optional",
+            direction = "Input")
+
+        int_comm = arcpy.Parameter(
+            displayName = "Interaction Comments",
+            name = "int_comm",
             datatype = "GPString",
             parameterType = "Optional",
             direction = "Input")
 
-        contact_comm = arcpy.Parameter(
-            displayName = "Landowner Contact Comments",
-            name = "contact_comm",
+        permission = arcpy.Parameter(
+            displayName = "Survey permission received?",
+            name = "permission",
             datatype = "GPString",
-            parameterType = "Required",
+            parameterType = "Optional",
+            direction = "Input")
+        permission.filter.type = "ValueList"
+        permission.filter.list = ["Not Contacted","Contacted, Awaiting Response","Permission Denied","Permission Granted"]
+
+        permission_comm = arcpy.Parameter(
+            displayName = "Survey permission comments",
+            name = "permission_comm",
+            datatype = "GPString",
+            parameterType = "Optional",
             direction = "Input")
 
-        params = [arcmap,potential_site,ref_code,target_elements,last_name,first_name,position,institution,address,city,state,zip_code,landline,mobile,email,maj_landowner,contact_comm]
+        access = arcpy.Parameter(
+            displayName = "Access Notes",
+            name = "access",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        followup = arcpy.Parameter(
+            displayName = "Follow Up Needed?",
+            name = "followup",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        followup.filter.type = "ValueList"
+        followup.filter.list = ["Yes","No"]
+
+        followup_comm = arcpy.Parameter(
+            displayName = "Follow Up Comments",
+            name = "followup_comm",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        params = [potential_site,refcode,target_elements,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
         return params
 
     def isLicensed(self):
         return True
 
     def updateParameters(self, params):
-        if params[0] == False:
-            params[1].value = 'FIND\Potential Survey Site'
-        elif params[0] == True:
-            params[1].value = 'PNHP\FIND\Potential Survey Site'
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            params[0].value = 'FIND\Potential Survey Site'
+        else:
+            params[0].value = 'PNHP\FIND\Potential Survey Site'
         return
 
     def updateMessages(self, params):
@@ -390,22 +455,30 @@ class PermissionDeniedTool(object):
 
     def execute(self, params, messages):
         # define parameters
-        potential_site = params[1].valueAsText
-        ref_code = params[2].valueAsText
-        target_elements = params[3].value
+        potential_site = params[0].valueAsText
+        refcode = params[1].valueAsText
+        target_elements = params[2].value
+        first_name = params[3].valueAsText
         last_name = params[4].valueAsText
-        first_name = params[5].valueAsText
-        position = params[6].valueAsText
-        institution = params[7].valueAsText
-        address = params[8].valueAsText
-        city = params[9].valueAsText
-        state = params[10].valueAsText
-        zip_code = params[11].valueAsText
+        position = params[5].valueAsText
+        institution = params[6].valueAsText
+        address = params[7].valueAsText
+        city = params[8].valueAsText
+        state = params[9].valueAsText
+        zip_code = params[10].valueAsText
+        mobile = params[11].valueAsText
         landline = params[12].valueAsText
-        mobile = params[13].valueAsText
-        email = params[14].valueAsText
-        maj_landowner = params[15].valueAsText
-        contact_comm = params[16].valueAsText
+        email = params[13].valueAsText
+        interaction = params[14].valueAsText
+        pref_interaction = params[15].valueAsText
+        start_date = params[16].valueAsText
+        end_date = params[17].valueAsText
+        int_comm = params[18].valueAsText
+        permission = params[19].valueAsText
+        permission_comm = params[20].valueAsText
+        access = params[21].valueAsText
+        followup = params[22].valueAsText
+        followup_comm = params[23].valueAsText
 
         # define element polygon layer and species list based on whether using ArcMap or ArcPro
         arc_prod = arcpy.GetInstallInfo()['ProductName']
@@ -413,8 +486,12 @@ class PermissionDeniedTool(object):
             elem_poly = r"FIND\Element Polygon"
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
-        nf_target = r"FIND.DBO.nf_target"
-        contact_tbl = r"FIND.DBO.contact"
+        if pro_version < 2.9:
+            nf_target = r"FIND2021.DBO.nf_target"
+            contacts = r'FIND2021.DBO.Contacts'
+        else:
+            nf_target = r"FIND\\FIND2021.DBO.nf_target"
+            contacts = r'FIND\\FIND2021.DBO.Contacts'
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(potential_site)
@@ -440,10 +517,52 @@ class PermissionDeniedTool(object):
         else:
             pass
 
-        # insert new negative record into element polygon layer that matches shape of selected survey site
-        values = [last_name,first_name,position,institution,address,city,state,zip_code,landline,mobile,email,maj_landowner,contact_comm,"ng",ref_code,site_name]
-        fields = ["lastn","firstn","position","instn","add1","city","st","zip","landline","mobile_ph","email","maj_landowner","contact_comm","perm_let_resp_type","refcode","prop_surv_site_n"]
-        with arcpy.da.InsertCursor(contact_tbl,fields) as cursor:
+        # insert new contact record
+        if interaction == "Telephone":
+            interaction = "TEL"
+        elif interaction == "Email":
+            interaction = "EMA"
+        elif interaction == "In-Person":
+            interaction = "PER"
+        elif interaction == "Letter or Postcard":
+            interaction = "LET"
+        elif interaction == "Other":
+            interaction = "OTH"
+        else:
+            pass
+
+        if pref_interaction == "Telephone":
+            pref_interaction = "TEL"
+        elif pref_interaction == "Email":
+            pref_interaction = "EMA"
+        elif pref_interaction == "In-Person":
+            pref_interaction = "PER"
+        elif pref_interaction == "Letter or Postcard":
+            pref_interaction = "LET"
+        elif pref_interaction == "Other":
+            pref_interaction = "OTH"
+        else:
+            pass
+
+        if permission == "Not Contacted":
+            permission = "NC"
+        elif permission == "Contacted, Awaiting Response":
+            permission = "AR"
+        elif permission == "Permission Denied":
+            permission = "PD"
+        elif permission == "Permission Granted":
+            permission = "PG"
+        else:
+            pass
+
+        if followup == "Yes":
+            followup = "Y"
+        else:
+            followup = "N"
+
+        values = [refcode,site_name,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+        fields = ["refcode","prop_surv_site_n","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
+        with arcpy.da.InsertCursor(contacts,fields) as cursor:
             cursor.insertRow(values)
 
         if target_elements:
@@ -494,7 +613,7 @@ class PermissionDeniedTool(object):
                 sp_feat_comm = "Feature copied from proposed survey site using permission denied data entry tool."
 
                 # insert new negative record into element polygon layer that matches shape of selected survey site
-                values = [ref_code,elem_type,elem_name,elem_found,elem_found_comm,eoid,sp_feat_meth,sp_feat_comm,dm_stat,geom]
+                values = [refcode,elem_type,elem_name,elem_found,elem_found_comm,eoid,sp_feat_meth,sp_feat_comm,dm_stat,geom]
                 fields = ["refcode","elem_type","elem_name","elem_found","elem_found_comm","eoid","feat_meth","feat_meth_comm","dm_stat","SHAPE@"]
                 with arcpy.da.InsertCursor(elem_poly,fields) as cursor:
                     cursor.insertRow(values)
@@ -533,7 +652,10 @@ class ListLoader(object):
     def execute(self, parameters, messages):
         # define species list Excel file that was exported from ListMaster and the Species List table name
         sp_list = r'H:\specieslist_find.xls'
-        sp_table = "FIND.DBO.SpeciesList"
+        if pro_version < 2.9:
+            sp_table = r"FIND2021.DBO.SpeciesList"
+        else:
+            sp_table = r"FIND\\FIND2021.DBO.SpeciesList"
 
         # convert the excel species list into a temporary ArcGIS table
         table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","tabled"), "out_SpeciesList")
@@ -662,7 +784,7 @@ class NeedsAttention(object):
         os.startfile(txt_file)
 
 ######################################################################################################################################################
-## Begin Needs Attention Reporting Tool
+## Begin Species Locator Tool
 ######################################################################################################################################################
 
 class SpeciesLocator(object):
@@ -709,6 +831,7 @@ class SpeciesLocator(object):
             cm_pt = r'FIND\Community or Other Point'
             cm_py = r'FIND\Community or Other Polygon'
             survey_site = r'FIND\Survey Site'
+            ref_poly = r'FIND\Reference Area Polygon'
         else:
             el_pt = r'PNHP\FIND\Element Point'
             el_ln = r'PNHP\FIND\Element Line'
@@ -716,11 +839,19 @@ class SpeciesLocator(object):
             cm_pt = r'PNHP\FIND\Community or Other Point'
             cm_py = r'PNHP\FIND\Community or Other Polygon'
             survey_site = r'PNHP\FIND\Survey Site'
+            ref_poly = r'PNHP\FIND\Reference Area Polygon'
 
-        species_list = r'FIND.DBO.SpeciesList'
+        if pro_version < 2.9:
+            species_list = r"FIND2021.DBO.SpeciesList"
+            ref_keyword = r"FIND2021.DBO.ref_keyword"
+        else:
+            species_list = r"FIND\\FIND2021.DBO.SpeciesList"
+            ref_keyword = r"FIND\\FIND2021.DBO.ref_keyword"
 
+        # create list of features to check for selections
         listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
 
+        # check for selections and error out if there are any selections
         for l in listo:
             desc = arcpy.Describe(l)
             if desc.FIDSet == '':
@@ -729,22 +860,25 @@ class SpeciesLocator(object):
                 arcpy.AddWarning("Please clear all of your selections and try again.")
                 sys.exit()
 
-
         d = et_all
         # get element name from dictionary
         key_list = list(d.keys())
         val_list = list(d.values())
         elem_list = key_list[val_list.index(species)]
 
+        # get list of reference codes from species list, element/community points,lines,polys, and reference keyword table is species matches selection
         spec_presence = sorted({row[0] for row in arcpy.da.SearchCursor(species_list,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
         el_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N' and row[2]!='No'})
         el_ln_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_ln,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
         el_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
         cm_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
         cm_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        ref_keyword_presence = sorted({row[0] for row in arcpy.da.SearchCursor(ref_keyword,['refcode','ref_keyword']) if row[0] is not None and row[1].lower() == species.lower()})
 
-        refcode_list = spec_presence+el_pt_presence+el_ln_presence+el_py_presence+cm_pt_presence+cm_py_presence
+        # combine reference code lists
+        refcode_list = spec_presence+el_pt_presence+el_ln_presence+el_py_presence+cm_pt_presence+cm_py_presence+ref_keyword_presence
 
+        # create where clause based on number of reference codes in list
         if len(refcode_list)==0:
             arcpy.AddWarning("Your selected species was not found in any survey site :(")
             sys.exit()
@@ -753,9 +887,527 @@ class SpeciesLocator(object):
         else:
             where_clause = 'refcode IN {0}'.format(tuple(refcode_list))
 
+        # select survey site polygons and reference area polygons that match reference code in list
         arcpy.SelectLayerByAttribute_management(survey_site,"NEW_SELECTION",where_clause)
+        arcpy.SelectLayerByAttribute_management(ref_poly,"NEW_SELECTION",where_clause)
 
         arcpy.AddMessage("The survey sites within which "+ species+ " has been found include: " + ', '.join(refcode_list))
-        arcpy.AddMessage("The survey site(s) where " + species + " was found is(are) now selected.")
+        arcpy.AddMessage("The survey site(s) and/or reference area polygon(s) where " + species + " was found is(are) now selected.")
+
+######################################################################################################################################################
+## Begin Needs Attention Reporting Tool
+######################################################################################################################################################
+
+class ParcelContactCreator(object):
+    def __init__(self):
+        self.label = "Parcel and Contact Creator"
+        self.alias = "Parcel and Contact Creator"
+        self.description = "Use this tool to copy parcels into FIND and create a related contact record."
+        self.canRunInBackground = False
+        self.category = "Data Entry Tools"
+
+    def getParameterInfo(self):
+        parcel = arcpy.Parameter(
+            displayName = "Selected Parcel Layer",
+            name = "parcel",
+            datatype = "GPFeatureLayer",
+            parameterType = "Required",
+            direction = "Input")
+
+        contact_include = arcpy.Parameter(
+            displayName = "Check box if you want to create a related contact record",
+            name = "contact_include",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
+        refcode = arcpy.Parameter(
+            displayName = "Survey Site Reference Code",
+            name = "refcode",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        prop_name = arcpy.Parameter(
+            displayName = "Proposed Survey Site Name",
+            name = "prop_name",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        attr_copy = arcpy.Parameter(
+            displayName = "Check box if you want to copy attributes from the parcel layer to your contact record",
+            name = "attr_copy",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
+        first_name = arcpy.Parameter(
+            displayName = "Landowner/Contact First Name",
+            name = "first_name",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        first_name.parameterDependencies = [parcel.name]
+
+        last_name = arcpy.Parameter(
+            displayName = "Landowner/Contact Last Name",
+            name = "last_name",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        last_name.parameterDependencies = [parcel.name]
+
+        position = arcpy.Parameter(
+            displayName = "Contact position or relationship to parcel",
+            name = "position",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        position.parameterDependencies = [parcel.name]
+
+        institution = arcpy.Parameter(
+            displayName = "Institution or Organization",
+            name = "institution",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        institution.parameterDependencies = [parcel.name]
+
+        address = arcpy.Parameter(
+            displayName = "Street Address",
+            name = "address",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        address.parameterDependencies = [parcel.name]
+
+        city = arcpy.Parameter(
+            displayName = "City",
+            name = "city",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        city.parameterDependencies = [parcel.name]
+
+        state = arcpy.Parameter(
+            displayName = "State",
+            name = "state",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        state.parameterDependencies = [parcel.name]
+
+        zip_code = arcpy.Parameter(
+            displayName = "Zip Code",
+            name = "zip_code",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+        zip_code.parameterDependencies = [parcel.name]
+
+        first_name1 = arcpy.Parameter(
+            displayName = "Landowner/Contact First Name",
+            name = "first_name1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        last_name1 = arcpy.Parameter(
+            displayName = "Landowner/Contact Last Name",
+            name = "last_name1",
+            datatype = "Field",
+            parameterType = "Optional",
+            direction = "Input")
+
+        position1 = arcpy.Parameter(
+            displayName = "Contact position or relationship to parcel",
+            name = "position1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        institution1 = arcpy.Parameter(
+            displayName = "Institution or Organization",
+            name = "institution1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        address1 = arcpy.Parameter(
+            displayName = "Street Address",
+            name = "address1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        city1 = arcpy.Parameter(
+            displayName = "City",
+            name = "city1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        state1 = arcpy.Parameter(
+            displayName = "State",
+            name = "state1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        zip_code1 = arcpy.Parameter(
+            displayName = "Zip Code",
+            name = "zip_code1",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        mobile = arcpy.Parameter(
+            displayName = "Mobile Phone (no symbols)",
+            name = "mobile",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        landline = arcpy.Parameter(
+            displayName = "Home Phone (no symbols)",
+            name = "landline",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        email = arcpy.Parameter(
+            displayName = "Email Address",
+            name = "email",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        interaction = arcpy.Parameter(
+            displayName = "Interaction Type",
+            name = "interaction",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        interaction.filter.type = "ValueList"
+        interaction.filter.list = ["Telephone","Email","In-Person","Letter or Postcard","Other"]
+
+        pref_interaction = arcpy.Parameter(
+            displayName = "Preferred Interaction Type",
+            name = "pref_interaction",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        pref_interaction.filter.type = "ValueList"
+        pref_interaction.filter.list = ["Telephone","Email","In-Person","Letter or Postcard","Other"]
+
+        start_date = arcpy.Parameter(
+            displayName = "Interaction Start Date",
+            name = "start_date",
+            datatype = "GPDate",
+            parameterType = "Optional",
+            direction = "Input")
+
+        end_date = arcpy.Parameter(
+            displayName = "Interaction End Date",
+            name = "end_date",
+            datatype = "GPDate",
+            parameterType = "Optional",
+            direction = "Input")
+
+        int_comm = arcpy.Parameter(
+            displayName = "Interaction Comments",
+            name = "int_comm",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        permission = arcpy.Parameter(
+            displayName = "Survey permission received?",
+            name = "permission",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        permission.filter.type = "ValueList"
+        permission.filter.list = ["Not Contacted","Contacted, Awaiting Response","Permission Denied","Permission Granted"]
+
+        permission_comm = arcpy.Parameter(
+            displayName = "Survey permission comments",
+            name = "permission_comm",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        access = arcpy.Parameter(
+            displayName = "Access Notes",
+            name = "access",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        followup = arcpy.Parameter(
+            displayName = "Follow Up Needed?",
+            name = "followup",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+        followup.filter.type = "ValueList"
+        followup.filter.list = ["Yes","No"]
+
+        followup_comm = arcpy.Parameter(
+            displayName = "Follow Up Comments",
+            name = "followup_comm",
+            datatype = "GPString",
+            parameterType = "Optional",
+            direction = "Input")
+
+        params = [parcel,contact_include,refcode,prop_name,attr_copy,first_name,last_name,position,institution,address,city,state,zip_code,
+        first_name1,last_name1,position1,institution1,address1,city1,state1,zip_code1,
+        mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices based on checkboxes
+        if params[1].value == True:
+            params[2].enabled = True
+            params[3].enabled = True
+            params[4].enabled = True
+            params[21].enabled = True
+            params[22].enabled = True
+            params[23].enabled = True
+            params[24].enabled = True
+            params[25].enabled = True
+            params[26].enabled = True
+            params[27].enabled = True
+            params[28].enabled = True
+            params[29].enabled = True
+            params[30].enabled = True
+            params[31].enabled = True
+            params[32].enabled = True
+            params[33].enabled = True
+            if params[4].value == True:
+                params[5].enabled = True
+                params[6].enabled = True
+                params[7].enabled = True
+                params[8].enabled = True
+                params[9].enabled = True
+                params[10].enabled = True
+                params[11].enabled = True
+                params[12].enabled = True
+                params[13].enabled = False
+                params[14].enabled = False
+                params[15].enabled = False
+                params[16].enabled = False
+                params[17].enabled = False
+                params[18].enabled = False
+                params[19].enabled = False
+                params[20].enabled = False
+
+            else:
+                params[5].enabled = False
+                params[6].enabled = False
+                params[7].enabled = False
+                params[8].enabled = False
+                params[9].enabled = False
+                params[10].enabled = False
+                params[11].enabled = False
+                params[12].enabled = False
+                params[13].enabled = True
+                params[14].enabled = True
+                params[15].enabled = True
+                params[16].enabled = True
+                params[17].enabled = True
+                params[18].enabled = True
+                params[19].enabled = True
+                params[20].enabled = True
+        else:
+            params[2].enabled = False
+            params[3].enabled = False
+            params[4].enabled = False
+            params[5].enabled = False
+            params[6].enabled = False
+            params[7].enabled = False
+            params[8].enabled = False
+            params[9].enabled = False
+            params[10].enabled = False
+            params[11].enabled = False
+            params[12].enabled = False
+            params[13].enabled = False
+            params[14].enabled = False
+            params[15].enabled = False
+            params[16].enabled = False
+            params[17].enabled = False
+            params[18].enabled = False
+            params[19].enabled = False
+            params[20].enabled = False
+            params[21].enabled = False
+            params[22].enabled = False
+            params[23].enabled = False
+            params[24].enabled = False
+            params[25].enabled = False
+            params[26].enabled = False
+            params[27].enabled = False
+            params[28].enabled = False
+            params[29].enabled = False
+            params[30].enabled = False
+            params[31].enabled = False
+            params[32].enabled = False
+            params[33].enabled = False
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        parcel = params[0].valueAsText
+        contact_include = params[1].value
+        if contact_include == True:
+            refcode = params[2].valueAsText
+            prop_name = params[3].valueAsText
+            attr_copy = params[4].valueAsText
+            mobile = params[21].valueAsText
+            landline = params[22].valueAsText
+            email = params[23].valueAsText
+            interaction = params[24].valueAsText
+            pref_interaction = params[25].valueAsText
+            start_date = params[26].valueAsText
+            end_date = params[27].valueAsText
+            int_comm = params[28].valueAsText
+            permission = params[29].valueAsText
+            permission_comm = params[30].valueAsText
+            access = params[31].valueAsText
+            followup = params[32].valueAsText
+            followup_comm = params[33].valueAsText
+            if attr_copy == True:
+                first_name = params[5].valueAsText
+                last_name = params[6].valueAsText
+                position = params[7].valueAsText
+                institution = params[8].valueAsText
+                address = params[9].valueAsText
+                city = params[10].valueAsText
+                state = params[11].valueAsText
+                zip_code = params[12].valueAsText
+            else:
+                first_name = params[13].valueAsText
+                last_name = params[14].valueAsText
+                position = params[15].valueAsText
+                institution = params[16].valueAsText
+                address = params[17].valueAsText
+                city = params[18].valueAsText
+                state = params[19].valueAsText
+                zip_code = params[20].valueAsText
+
+        else:
+            pass
+
+        # define name of parameters based on ArcGIS Pro or ArcMap
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            find_parcels = r'FIND\Parcels'
+
+        else:
+            find_parcels = r'PNHP\FIND\Parcels'
+
+        if pro_version < 2.9:
+            contacts = r'FIND2021.DBO.Contacts'
+        else:
+            contacts = r'FIND\\FIND2021.DBO.Contacts'
+
+        # check that only one parcel is selected - error out if not
+        desc = arcpy.Describe(parcel)
+        if desc.FIDSet == '':
+            arcpy.AddMessage("No parcels are selected. Please make a selection and try again.")
+            sys.exit()
+        elif len((desc.FIDSet).split(';')) > 1:
+            arcpy.AddMessage("More than one parcel is selected. Please select only the parcel for which you intend to copy and try again.")
+            sys.exit()
+        else:
+            pass
+
+        # select FIND parcel if it is exactly identical in geometry to selected parcel
+        arcpy.SelectLayerByLocation_management(find_parcels,"ARE_IDENTICAL_TO",parcel,"","NEW_SELECTION")
 
 
+        desc = arcpy.Describe(find_parcels)
+        # if no FIND parcels match geometry, copy parcel into FIND parcel layer and assign new parcel id
+        if desc.FIDSet == '':
+            arcpy.SelectLayerByAttribute_management(find_parcels,"CLEAR_SELECTION")
+            with arcpy.da.SearchCursor(find_parcels, 'parcelID') as cursor:
+                existing_ids = sorted({row[0] for row in cursor})
+            t = existing_ids[-1]
+            parcel_id = "P-"+str(int(t[2:])+1).zfill(10)
+
+            with arcpy.da.SearchCursor(parcel,"SHAPE@") as cursor:
+                for row in cursor:
+                    geom = row[0]
+
+            values = [parcel_id,geom]
+            fields = ["parcelID","SHAPE@"]
+            with arcpy.da.InsertCursor(find_parcels,fields) as cursor:
+                cursor.insertRow(values)
+        # if FIND parcel already exists, assign existing parcel ID
+        num = int(arcpy.GetCount_management(find_parcels).getOutput(0))
+        if num == 1:
+            parcel_id = sorted({row[0] for row in arcpy.da.SearchCursor(find_parcels,"parcelID")})[0]
+            arcpy.AddMessage("An identical parcel already exists in the FIND Parcels layer. Your contact record will be added to Parcel ID: "+ parcel_id)
+        # if more than one identical FIND parcels exist
+        else:
+            arcpy.AddMessage("A new parcel was copied into the FIND parcel layer with Parcel ID: " + parcel_id)
+
+        # check for user option to create contact
+        if contact_include == True:
+
+            # change selections into the coded domain values
+            if interaction == "Telephone":
+                interaction = "TEL"
+            elif interaction == "Email":
+                interaction = "EMA"
+            elif interaction == "In-Person":
+                interaction = "PER"
+            elif interaction == "Letter or Postcard":
+                interaction = "LET"
+            elif interaction == "Other":
+                interaction = "OTH"
+            else:
+                pass
+
+            if pref_interaction == "Telephone":
+                pref_interaction = "TEL"
+            elif pref_interaction == "Email":
+                pref_interaction = "EMA"
+            elif pref_interaction == "In-Person":
+                pref_interaction = "PER"
+            elif pref_interaction == "Letter or Postcard":
+                pref_interaction = "LET"
+            elif pref_interaction == "Other":
+                pref_interaction = "OTH"
+            else:
+                pass
+
+            if permission == "Not Contacted":
+                permission = "NC"
+            elif permission == "Contacted, Awaiting Response":
+                permission = "AR"
+            elif permission == "Permission Denied":
+                permission = "PD"
+            elif permission == "Permission Granted":
+                permission = "PG"
+            else:
+                pass
+
+            if followup == "Yes":
+                followup = "Y"
+            else:
+                followup = "N"
+
+            # insert new contact record
+            values = [parcel_id,refcode,prop_name,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+            fields = ["parcelID","refcode","prop_surv_site_n","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
+            with arcpy.da.InsertCursor(contacts,fields) as cursor:
+                cursor.insertRow(values)
+
+            arcpy.AddMessage("A new contact record was created with parcel ID: " + parcel_id + ". Please check this record, make any tabular updates, and save your edits.")

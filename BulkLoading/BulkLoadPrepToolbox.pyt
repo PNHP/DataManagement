@@ -402,7 +402,6 @@ class TerrestrialGrouping(object):
             sfid2 = sorted({row[0] for row in cursor if row[0] is not None})
         sfid = sfid1 + sfid2
         sfid = [x for x in sfid if x is not None]
-        sfid = [x.encode('UTF8') for x in sfid]
         for sf in sfid:
             with arcpy.da.UpdateCursor(data_lyr, ["SF_ID", "SF_NEW", "UNIQUEID"]) as cursor:
                 for row in cursor:

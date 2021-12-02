@@ -17,20 +17,18 @@
 #-------------------------------------------------------------------------------
 
 # import system modules
-import arcpy, os, datetime
-from arcpy import env
-from arcpy.sa import *
+import arcpy
 
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-workspace = r"C:\Users\mmoore\AppData\Roaming\ESRI\Desktop10.7\ArcCatalog\FIND.Working.pgh-gis0.sde"
-el_pt = r'{}\FIND.DBO.el_pt'.format(workspace)
-el_line = r'{}\FIND.DBO.el_line'.format(workspace)
-comm_poly = r'{}\FIND.DBO.comm_poly'.format(workspace)
-comm_pt = r'{}\FIND.DBO.comm_pt'.format(workspace)
-el_poly = r'{}\FIND.DBO.el_poly'.format(workspace)
-survey_poly = r'{}\FIND.DBO.survey_poly'.format(workspace)
+workspace = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2021.Working.pgh-gis0.sde"
+el_pt = r'{}\FIND2021.DBO.el_pt'.format(workspace)
+el_line = r'{}\FIND2021.DBO.el_line'.format(workspace)
+comm_poly = r'{}\FIND2021.DBO.comm_poly'.format(workspace)
+comm_pt = r'{}\FIND2021.DBO.comm_pt'.format(workspace)
+el_poly = r'{}\FIND2021.DBO.el_poly'.format(workspace)
+survey_poly = r'{}\FIND2021.DBO.survey_poly'.format(workspace)
 
 input_features = [el_pt, el_line, comm_poly, comm_pt, el_poly, survey_poly]
 edit = arcpy.da.Editor(workspace)

@@ -7,7 +7,8 @@
 #-------------------------------------------------------------------------------
 
 #import packages
-import arcpy, time, datetime, os
+import arcpy
+import os
 from datetime import datetime
 import sqlite3
 import pyodbc

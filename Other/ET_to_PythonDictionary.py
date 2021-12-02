@@ -11,7 +11,7 @@
 
 import pandas as pd
 
-et_folder = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2020\DM Documentation\Admin and maintenance\20200305_'
+et_folder = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2021\DM Documentation\Admin and maintenance\20210303_'
 et_comm = r'ET_COMMOTH'
 et_insect = r'ET_INSECT'
 et_invert = r'ET_INVERT'
@@ -35,6 +35,14 @@ et_lep = loadExcel(et_folder+et_lep+".xlsx")
 et_plant = loadExcel(et_folder+et_plant+".xlsx")
 et_vert = loadExcel(et_folder+et_vert+".xlsx")
 et_all = loadExcel(et_folder+et_all+".xlsx")
+
+print(et_comm)
+print(et_insect)
+print(et_invert)
+print(et_lep)
+print(et_plant)
+print(et_vert)
+print(et_all)
 
 
 
