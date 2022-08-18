@@ -19,7 +19,7 @@ arcpy.env.overwriteOutput = True
 arcpy.env.workspace = "memory"
 
 ######################################################################################################################################################
-##
+## define toolbox class
 ######################################################################################################################################################
 
 class Toolbox(object):
@@ -29,7 +29,7 @@ class Toolbox(object):
         self.tools = [BioticsUpdate]
 
 ######################################################################################################################################################
-##
+## Biotics Feature Service Update tool
 ######################################################################################################################################################
 
 class BioticsUpdate(object):
@@ -68,7 +68,7 @@ class BioticsUpdate(object):
 
         system_username = getuser().upper()
 
-        pnhp_db = arcpy.CreateDatabaseConnection_management("H:","PNHP.sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL","DBO.Working")
+        pnhp_db = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde"
 ##        arcpy.CreateVersion_management(working_db,"DBO.Working",username+"_TEMP","PUBLIC")
 ##        pnhp_db = arcpy.CreateDatabaseConnection_management("H:","PNHP_"+username+".sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL",'"WPC\\'+system_username+'".'+username+"_TEMP")
 

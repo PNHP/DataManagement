@@ -698,7 +698,7 @@ class AquaticGrouping(object):
             eo_serviceLayerName = subLayerNames["SALines"]
             arcpy.na.AddLocations(eo_service_area_lyr, eo_facilitiesLayerName, s, "", snap_dist)
             arcpy.na.Solve(eo_service_area_lyr)
-            eo_lines = arcpy.mapping.ListLayers(eo_service_area_lyr,eo_serviceLayerName)[0]
+            eo_lines = eo_service_area_lyr.listLayers(eo_serviceLayerName)[0]
             eo_flowline_clip = arcpy.CopyFeatures_management(eo_lines,"eo_service_area")
             eo_flowline_buff = arcpy.Buffer_analysis(eo_flowline_clip,"eo_flowline_buff","1 Meter","FULL","ROUND")
             eo_flowline_diss = arcpy.Dissolve_management(eo_flowline_buff,"eo_flowline_diss",multi_part="SINGLE_PART")
@@ -717,7 +717,7 @@ class AquaticGrouping(object):
             sp_serviceLayerName = subLayerNames["SALines"]
             arcpy.na.AddLocations(sp_service_area_lyr, sp_facilitiesLayerName, s, "", snap_dist)
             arcpy.na.Solve(sp_service_area_lyr)
-            sp_lines = arcpy.mapping.ListLayers(sp_service_area_lyr,sp_serviceLayerName)[0]
+            sp_lines = sp_service_area_lyr.listLayers(sp_serviceLayerName)[0]
             sp_flowline_clip = arcpy.CopyFeatures_management(sp_lines,"sp_service_area")
             sp_flowline_buff = arcpy.Buffer_analysis(sp_flowline_clip,"sp_flowline_buff","1 Meter","FULL","ROUND")
             sp_flowline_diss = arcpy.Dissolve_management(sp_flowline_buff,"sp_flowline_diss",multi_part="SINGLE_PART")

@@ -6,12 +6,20 @@
 # Updated:     2020-11-25
 #-------------------------------------------------------------------------------
 
+#### NOTE: NEEDS TO RUN ON A COMPUTER WITH MS ACCESS DRIVERS INSTALLED TO ACCESS PROCESSING DB WITH PYODBC.
+#### CAN RUN ON WPC APPS
+
+# SET DATE RANGE!!!!!!!!!!!!
+date1 = "06/29/2022"
+date2 = "07/28/2022"
+
 #import packages
 import arcpy
 import os
 from datetime import datetime
 import sqlite3
 import pyodbc
+import csv
 
 #set start time
 start_time = time.time()
@@ -28,12 +36,12 @@ reportPath = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_EOReps'
 accessdb = r'P:\Conservation Programs\Natural Heritage Program\Data Management\ACCESS databases\Processing_database\DM_processing.accdb'
 scratch = r'in_memory'
 
-reporttype = raw_input("Which report do you want to run? (enter 'EO change' or 'Outstanding CPP")
-if reporttype.lower() == 'eo change':
-    date1 = raw_input("Enter the date after which you want to include records (MM/DD/YYYY)")
-    date2 = raw_input("Enter the date before which you want to include records (MM/DD/YYYY)")
-else:
-    pass
+# reporttype = input("Which report do you want to run? (enter 'EO change' or 'Outstanding CPP): ")
+# if reporttype.lower() == 'eo change':
+##date1 = input("Enter the date after which you want to include records (MM/DD/YYYY): ")
+##date2 = input("Enter the date before which you want to include records (MM/DD/YYYY): ")
+# else:
+#     pass
 
 #connect to cpp sqlite database to create spec id dictionary
 conn = sqlite3.connect(cpp_db)
@@ -154,8 +162,20 @@ with arcpy.da.UpdateCursor(cpp_eo_ptreps,["EO_ID","date_created","mapper_status"
                 row[4]=v[3]
                 cursor.updateRow(row)
 
-#create Excel spreadsheet of returned records
-arcpy.TableToExcel_conversion(cpp_eo_ptreps,os.path.join(reportPath, 'CPP_EO_Changes_'+date1.replace("/","")+"_"+date2.replace("/","")+".xls"))
+date1 = datetime.strptime(date1,'%m/%d/%Y').strftime('%Y%m%d')
+date2 = datetime.strptime(date2,'%m/%d/%Y').strftime('%Y%m%d')
+
+print("create final dict and write csv")
+final_dict = {}
+with arcpy.da.SearchCursor(cpp_eo_ptreps,['EO_ID','SNAME','SCOMNAME','date_created','mapper_status','description','specid','specid_2','specid_3','specid_comments','ER_RULE','EO_TRACK','ELSUBID','EO_TYPE','county'],sql_clause=(None,"ORDER BY specid")) as cursor:
+    for row in cursor:
+        final_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12]]
+
+with open(os.path.join(reportPath, 'CPP_EO_Changes_'+date1+'_'+date2+'.csv'), 'wb') as csvfile:
+    csv_output = csv.writer(csvfile)
+    csv_output.writerow(['EO_ID','SNAME','SCOMNAME','date_created','mapper_status','description','specid','specid_2','specid_3','specid_comments','ER_RULE','EO_TRACK','ELSUBID','EO_TYPE','county'])
+    for key in sorted(final_dict.keys()):
+        csv_output.writerow([key] + final_dict[key])
 
 #report time
 Time = "The script took {} minutes to run.".format(str((time.time()-start_time)/60))

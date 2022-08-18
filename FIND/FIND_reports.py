@@ -31,7 +31,7 @@ env.workspace = r'in_memory'
 ################################################################################
 
 # file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND2021.DBO.el_pt", "FIND2021.DBO.el_line", "FIND2021.DBO.comm_poly", "FIND2021.DBO.comm_pt", "FIND2021.DBO.el_poly", "FIND2021.DBO.survey_poly"]
+input_features = ["FIND2022.DBO.el_pt", "FIND2022.DBO.el_line", "FIND2022.DBO.comm_poly", "FIND2022.DBO.comm_pt", "FIND2022.DBO.el_poly", "FIND2022.DBO.survey_poly"]
 
 # file names that are used for temporary output element feature classes
 elementShapefiles = ["element_point", "element_line", "community_poly", "community_point", "element_poly", "survey_site"]
@@ -40,16 +40,16 @@ elementShapefiles = ["element_point", "element_line", "community_poly", "communi
 elementTables = ["element_point1", "element_line1","community_poly1", "community_point1", "element_poly1", "survey_site1"]
 
 # path to FIND enterprise database
-elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2021.Working.pgh-gis0.sde"
+elementGDB = r"C:\Users\MMoore\AppData\Roaming\ESRI\Desktop10.7\ArcCatalog\FIND2022.Working.pgh-gis0.sde"
 
 # path to county layer
-counties = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\StateLayers.Default.pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
+counties = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\StateLayers_Default_pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
 
 # path to Biotics ET
-et = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP.Working.pgh-gis0.sde\\PNHP.DBO.ET"
+et = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.ET"
 
 # path to folder where DM reports will be saved as Excel files
-ReportsPath = r"P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\FIND_2021\Reports"
+ReportsPath = r"P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports"
 
 for i, shape_output, table_output in zip(input_features, elementShapefiles, elementTables):
     target_features = os.path.join(elementGDB, i)
@@ -231,7 +231,10 @@ West = ["ERIE", "CRAWFORD", "MERCER", "LAWRENCE", "BEAVER", "WASHINGTON", "GREEN
 # populate location field with east or west depending if they are in list
 with arcpy.da.UpdateCursor(pivot, ["COUNTY_NAM", "Location"]) as cursor:
     for row in cursor:
-            if row[0] in West:
+            if row[0] is None:
+                row[1] = ''
+                cursor.updateRow(row)
+            elif row[0] in West:
                 row[1] = "W"
                 cursor.updateRow(row)
             else:
@@ -364,10 +367,12 @@ with open(os.path.join(ReportsPath, 'Biologist Status Reports', "_User_Unprocess
 
 for ref,name in zip(refcode_inits,user_last):
     incomplete_dict = {}
+    key_id = 1
     with arcpy.da.SearchCursor(elementRecords,["refcode","element_type","elem_name","ELCODE","elem_found","id_prob_comm","specimen_taken","specimen_count","specimen_desc","curatorial_meth", "specimen_repo","voucher_photo",
         "dm_stat","dm_stat_comm","created_user","created_date","COUNTY_NAM","X","Y"],"((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(ref,name)) as cursor:
         for row in cursor:
-            incomplete_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16],row[17],row[18]]
+            incomplete_dict[key_id] = [row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16],row[17],row[18]]
+            key_id += 1
 
     # write to .csv file
     with open(os.path.join(ReportsPath, 'Biologist Status Reports', name + "_IncompleteRecords_" + time.strftime("%d%b%Y") + '.csv'),'wb') as csvfile:
@@ -375,6 +380,6 @@ for ref,name in zip(refcode_inits,user_last):
         csv_output.writerow(['Reference Code','Feature Type','Scientific Name','ELCODE','Element found?','Any problems with ID?','Specimen taken?','Specimen Count','Specimen Description','Curatorial Method','Specimen Repository','Voucher Photo',
             'DM Status','DM Status Comments','Created User','Created Date','County','X','Y'])
         for key in sorted(incomplete_dict.keys()):
-            csv_output.writerow([key] + incomplete_dict[key])
+            csv_output.writerow(incomplete_dict[key])
 
 print("DM Biologist Report Created!")

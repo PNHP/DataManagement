@@ -5,6 +5,7 @@ Author: mmoore
 Created: 27/01/2020
 Updated: 03/30/2021
 Update Notes: 03/2021 - added Parcel and Contact Creator Tool, updated path names to FIND2021 feature service
+Update Notes: 03/2022 - updated path names to FIND2022 feature service, updated parcel tool to better handle identical parcel features
 12/2/2021 - BUG FIX: updated FIND table paths to be dependent on Pro version to solve issue of whether tables are nested under feature service or in standalone table section
 #-------------------------------------------------------------------------------"""
 
@@ -14,14 +15,16 @@ Update Notes: 03/2021 - added Parcel and Contact Creator Tool, updated path name
 
 import arcpy,time,datetime,os,sys,string
 from getpass import getuser
-from FIND_et_2021 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
+import csv
+import shutil
+from FIND_et_2022 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
 
 arcpy.env.overwriteOutput = True
 
 et_list = sorted(list(et_all.values()))
 ##et_list.insert(0," ")
 
-pro_version = float(arcpy.GetInstallInfo()['Version'])
+pro_version = float(str(arcpy.GetInstallInfo()['Version'])[0:3])
 
 ######################################################################################################################################################
 ## Begin toolbox
@@ -31,7 +34,7 @@ class Toolbox(object):
     def __init__(self):
         self.label = "FIND Data Entry and Reporting Toolbox"
         self.alias = "FIND Data Entry and Reporting Toolbox"
-        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator,ParcelContactCreator]
+        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator,ParcelContactCreator,SurveySiteReport]
 
 ######################################################################################################################################################
 ## Begin negative data entry tool
@@ -143,9 +146,9 @@ class NegativeDataEntryTool(object):
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
         if pro_version < 2.9:
-            species_table = r"FIND2021.DBO.SpeciesList"
+            species_table = r"FIND2022.DBO.SpeciesList"
         else:
-            species_table = r"FIND\\FIND2021.DBO.SpeciesList"
+            species_table = r"FIND\\FIND2022.DBO.SpeciesList"
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(survey_site)
@@ -270,6 +273,14 @@ class PermissionDeniedTool(object):
             datatype = "GPString",
             parameterType = "Required",
             direction = "Input")
+
+        parcel_id = arcpy.Parameter(
+            displayName = "FIND Parcel ID if Available",
+            name = "parcel_id",
+            datatype = "GPString",
+            parameterType= "Optional",
+            direction = "Input"
+        )
 
         target_elements = arcpy.Parameter(
             displayName = "Target Element(s) Name",
@@ -436,7 +447,7 @@ class PermissionDeniedTool(object):
             parameterType = "Optional",
             direction = "Input")
 
-        params = [potential_site,refcode,target_elements,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+        params = [potential_site,refcode,parcel_id,target_elements,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
         return params
 
     def isLicensed(self):
@@ -457,28 +468,29 @@ class PermissionDeniedTool(object):
         # define parameters
         potential_site = params[0].valueAsText
         refcode = params[1].valueAsText
-        target_elements = params[2].value
-        first_name = params[3].valueAsText
-        last_name = params[4].valueAsText
-        position = params[5].valueAsText
-        institution = params[6].valueAsText
-        address = params[7].valueAsText
-        city = params[8].valueAsText
-        state = params[9].valueAsText
-        zip_code = params[10].valueAsText
-        mobile = params[11].valueAsText
-        landline = params[12].valueAsText
-        email = params[13].valueAsText
-        interaction = params[14].valueAsText
-        pref_interaction = params[15].valueAsText
-        start_date = params[16].valueAsText
-        end_date = params[17].valueAsText
-        int_comm = params[18].valueAsText
-        permission = params[19].valueAsText
-        permission_comm = params[20].valueAsText
-        access = params[21].valueAsText
-        followup = params[22].valueAsText
-        followup_comm = params[23].valueAsText
+        parcel_id = params[2].valueAsText
+        target_elements = params[3].value
+        first_name = params[4].valueAsText
+        last_name = params[5].valueAsText
+        position = params[6].valueAsText
+        institution = params[7].valueAsText
+        address = params[8].valueAsText
+        city = params[9].valueAsText
+        state = params[10].valueAsText
+        zip_code = params[11].valueAsText
+        mobile = params[12].valueAsText
+        landline = params[13].valueAsText
+        email = params[14].valueAsText
+        interaction = params[15].valueAsText
+        pref_interaction = params[16].valueAsText
+        start_date = params[17].valueAsText
+        end_date = params[18].valueAsText
+        int_comm = params[19].valueAsText
+        permission = params[20].valueAsText
+        permission_comm = params[21].valueAsText
+        access = params[22].valueAsText
+        followup = params[23].valueAsText
+        followup_comm = params[24].valueAsText
 
         # define element polygon layer and species list based on whether using ArcMap or ArcPro
         arc_prod = arcpy.GetInstallInfo()['ProductName']
@@ -487,11 +499,11 @@ class PermissionDeniedTool(object):
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
         if pro_version < 2.9:
-            nf_target = r"FIND2021.DBO.nf_target"
-            contacts = r'FIND2021.DBO.Contacts'
+            nf_target = r"FIND2022.DBO.nf_target"
+            contacts = r'FIND2022.DBO.Contacts'
         else:
-            nf_target = r"FIND\\FIND2021.DBO.nf_target"
-            contacts = r'FIND\\FIND2021.DBO.Contacts'
+            nf_target = r"FIND\\FIND2022.DBO.nf_target"
+            contacts = r'FIND\\FIND2022.DBO.Contacts'
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(potential_site)
@@ -560,8 +572,8 @@ class PermissionDeniedTool(object):
         else:
             followup = "N"
 
-        values = [refcode,site_name,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
-        fields = ["refcode","prop_surv_site_n","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
+        values = [refcode,site_name,parcel_id,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+        fields = ["refcode","prop_surv_site_n","parcelID","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
         with arcpy.da.InsertCursor(contacts,fields) as cursor:
             cursor.insertRow(values)
 
@@ -653,9 +665,9 @@ class ListLoader(object):
         # define species list Excel file that was exported from ListMaster and the Species List table name
         sp_list = r'H:\specieslist_find.xls'
         if pro_version < 2.9:
-            sp_table = r"FIND2021.DBO.SpeciesList"
+            sp_table = r"FIND2022.DBO.SpeciesList"
         else:
-            sp_table = r"FIND\\FIND2021.DBO.SpeciesList"
+            sp_table = r"FIND\\FIND2022.DBO.SpeciesList"
 
         # convert the excel species list into a temporary ArcGIS table
         table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","tabled"), "out_SpeciesList")
@@ -842,11 +854,11 @@ class SpeciesLocator(object):
             ref_poly = r'PNHP\FIND\Reference Area Polygon'
 
         if pro_version < 2.9:
-            species_list = r"FIND2021.DBO.SpeciesList"
-            ref_keyword = r"FIND2021.DBO.ref_keyword"
+            species_list = r"FIND2022.DBO.SpeciesList"
+            ref_keyword = r"FIND2022.DBO.ref_keyword"
         else:
-            species_list = r"FIND\\FIND2021.DBO.SpeciesList"
-            ref_keyword = r"FIND\\FIND2021.DBO.ref_keyword"
+            species_list = r"FIND\\FIND2022.DBO.SpeciesList"
+            ref_keyword = r"FIND\\FIND2022.DBO.ref_keyword"
 
         # create list of features to check for selections
         listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
@@ -1174,7 +1186,7 @@ class ParcelContactCreator(object):
         if params[1].value == True:
             params[2].enabled = True
             params[3].enabled = True
-            params[4].enabled = True
+            params[4].enabled = False
             params[21].enabled = True
             params[22].enabled = True
             params[23].enabled = True
@@ -1188,41 +1200,41 @@ class ParcelContactCreator(object):
             params[31].enabled = True
             params[32].enabled = True
             params[33].enabled = True
-            if params[4].value == True:
-                params[5].enabled = True
-                params[6].enabled = True
-                params[7].enabled = True
-                params[8].enabled = True
-                params[9].enabled = True
-                params[10].enabled = True
-                params[11].enabled = True
-                params[12].enabled = True
-                params[13].enabled = False
-                params[14].enabled = False
-                params[15].enabled = False
-                params[16].enabled = False
-                params[17].enabled = False
-                params[18].enabled = False
-                params[19].enabled = False
-                params[20].enabled = False
+            # if params[4].value == True:
+            #     params[5].enabled = True
+            #     params[6].enabled = True
+            #     params[7].enabled = True
+            #     params[8].enabled = True
+            #     params[9].enabled = True
+            #     params[10].enabled = True
+            #     params[11].enabled = True
+            #     params[12].enabled = True
+            #     params[13].enabled = False
+            #     params[14].enabled = False
+            #     params[15].enabled = False
+            #     params[16].enabled = False
+            #     params[17].enabled = False
+            #     params[18].enabled = False
+            #     params[19].enabled = False
+            #     params[20].enabled = False
 
-            else:
-                params[5].enabled = False
-                params[6].enabled = False
-                params[7].enabled = False
-                params[8].enabled = False
-                params[9].enabled = False
-                params[10].enabled = False
-                params[11].enabled = False
-                params[12].enabled = False
-                params[13].enabled = True
-                params[14].enabled = True
-                params[15].enabled = True
-                params[16].enabled = True
-                params[17].enabled = True
-                params[18].enabled = True
-                params[19].enabled = True
-                params[20].enabled = True
+            # else:
+            #     params[5].enabled = False
+            #     params[6].enabled = False
+            #     params[7].enabled = False
+            #     params[8].enabled = False
+            #     params[9].enabled = False
+            #     params[10].enabled = False
+            #     params[11].enabled = False
+            #     params[12].enabled = False
+            params[13].enabled = True
+            params[14].enabled = True
+            params[15].enabled = True
+            params[16].enabled = True
+            params[17].enabled = True
+            params[18].enabled = True
+            params[19].enabled = True
+            params[20].enabled = True
         else:
             params[2].enabled = False
             params[3].enabled = False
@@ -1282,27 +1294,37 @@ class ParcelContactCreator(object):
             access = params[31].valueAsText
             followup = params[32].valueAsText
             followup_comm = params[33].valueAsText
-            if attr_copy == True:
-                first_name = params[5].valueAsText
-                last_name = params[6].valueAsText
-                position = params[7].valueAsText
-                institution = params[8].valueAsText
-                address = params[9].valueAsText
-                city = params[10].valueAsText
-                state = params[11].valueAsText
-                zip_code = params[12].valueAsText
-            else:
-                first_name = params[13].valueAsText
-                last_name = params[14].valueAsText
-                position = params[15].valueAsText
-                institution = params[16].valueAsText
-                address = params[17].valueAsText
-                city = params[18].valueAsText
-                state = params[19].valueAsText
-                zip_code = params[20].valueAsText
+            # if attr_copy == False:
+            first_name = params[13].valueAsText
+            last_name = params[14].valueAsText
+            position = params[15].valueAsText
+            institution = params[16].valueAsText
+            address = params[17].valueAsText
+            city = params[18].valueAsText
+            state = params[19].valueAsText
+            zip_code = params[20].valueAsText
 
-        else:
-            pass
+            # else:
+            #     arcpy.AddMessage("things are working as they should")
+            #     f_name = params[5].valueAsText
+            #     l_name = params[6].valueAsText
+            #     posit = params[7].valueAsText
+            #     instit = params[8].valueAsText
+            #     addr = params[9].valueAsText
+            #     cit = params[10].valueAsText
+            #     stat = params[11].valueAsText
+            #     zip_c = params[12].valueAsText
+            #
+            #     with arcpy.da.SearchCursor(parcel,[f_name,l_name,posit,instit,addr,cit,stat,zip_c]) as cursor:
+            #         for row in cursor:
+            #             first_name = row[0]
+            #             last_name = row[1]
+            #             position = row[2]
+            #             institution = row[3]
+            #             address = row[4]
+            #             city = row[5]
+            #             state = row[6]
+            #             zip_code = row[7]
 
         # define name of parameters based on ArcGIS Pro or ArcMap
         arc_prod = arcpy.GetInstallInfo()['ProductName']
@@ -1313,9 +1335,9 @@ class ParcelContactCreator(object):
             find_parcels = r'PNHP\FIND\Parcels'
 
         if pro_version < 2.9:
-            contacts = r'FIND2021.DBO.Contacts'
+            contacts = r'FIND2022.DBO.Contacts'
         else:
-            contacts = r'FIND\\FIND2021.DBO.Contacts'
+            contacts = r'FIND\\FIND2022.DBO.Contacts'
 
         # check that only one parcel is selected - error out if not
         desc = arcpy.Describe(parcel)
@@ -1329,12 +1351,18 @@ class ParcelContactCreator(object):
             pass
 
         # select FIND parcel if it is exactly identical in geometry to selected parcel
-        arcpy.SelectLayerByLocation_management(find_parcels,"ARE_IDENTICAL_TO",parcel,"","NEW_SELECTION")
+        with arcpy.da.SearchCursor(parcel,'SHAPE@') as cursor:
+            for row in cursor:
+                geom = row[0]
+        counter = 0
+        with arcpy.da.SearchCursor(find_parcels,['SHAPE@','parcelID']) as cursor:
+            for row in cursor:
+                if row[0] == geom:
+                    counter += 1
+                    parcel_id = row[1]
 
-
-        desc = arcpy.Describe(find_parcels)
         # if no FIND parcels match geometry, copy parcel into FIND parcel layer and assign new parcel id
-        if desc.FIDSet == '':
+        if counter == 0:
             arcpy.SelectLayerByAttribute_management(find_parcels,"CLEAR_SELECTION")
             with arcpy.da.SearchCursor(find_parcels, 'parcelID') as cursor:
                 existing_ids = sorted({row[0] for row in cursor})
@@ -1349,14 +1377,14 @@ class ParcelContactCreator(object):
             fields = ["parcelID","SHAPE@"]
             with arcpy.da.InsertCursor(find_parcels,fields) as cursor:
                 cursor.insertRow(values)
+            arcpy.AddMessage("A new parcel was created in the FIND Parcels layer with Parcel ID: " +parcel_id)
         # if FIND parcel already exists, assign existing parcel ID
-        num = int(arcpy.GetCount_management(find_parcels).getOutput(0))
-        if num == 1:
-            parcel_id = sorted({row[0] for row in arcpy.da.SearchCursor(find_parcels,"parcelID")})[0]
+        elif counter == 1:
             arcpy.AddMessage("An identical parcel already exists in the FIND Parcels layer. Your contact record will be added to Parcel ID: "+ parcel_id)
         # if more than one identical FIND parcels exist
         else:
-            arcpy.AddMessage("A new parcel was copied into the FIND parcel layer with Parcel ID: " + parcel_id)
+            arcpy.AddWarning("There are more than one identical parcels in FIND already. This is strange. Please contact the database administrator.")
+            sys.exit()
 
         # check for user option to create contact
         if contact_include == True:
@@ -1411,3 +1439,245 @@ class ParcelContactCreator(object):
                 cursor.insertRow(values)
 
             arcpy.AddMessage("A new contact record was created with parcel ID: " + parcel_id + ". Please check this record, make any tabular updates, and save your edits.")
+
+######################################################################################################################################################
+## Begin Survey Site Report Tool
+######################################################################################################################################################
+
+class SurveySiteReport(object):
+    def __init__(self):
+        self.label = "Survey Site Report - DEVELOPMENT"
+        self.alias = "Survey Site Report - DEVELOPMENT"
+        self.description = "Run this tool to generate text that can be used to paste into a survey site report."
+        self.canRunInBackground = False
+        self.category = "QC and Reporting Tools"
+
+    def getParameterInfo(self):
+        survey_site = arcpy.Parameter(
+            displayName = "Selected Survey Site Layer",
+            name = "survey_site",
+            datatype = "GPFeatureLayer",
+            parameterType = "Required",
+            direction = "Input")
+
+        params = [survey_site]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        survey_site = params[0].valueAsText
+
+        count = int(arcpy.GetCount_management(survey_site).getOutput(0))
+
+        if count > 1:
+            arcpy.AddWarning("Please select 1 and only 1 survey site and try again.")
+            sys.exit()
+        else:
+            pass
+
+        with arcpy.da.SearchCursor(survey_site,"survey_sit") as cursor:
+            for row in cursor:
+                if row[0] is None:
+                    arcpy.AddWarning("Your survey site doesn't have a name. Please add a name in the 'Survey Site' field and try again.")
+                    sys.exit()
+                else:
+                    survey_name = row[0]
+
+        # establish location of .txt file report in same folder as script location
+        name = str(''.join(x for x in survey_name if x.isalnum()))
+        out_dir = os.path.join(os.path.dirname(__file__),'FIND_SurveyReports',name)
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+        txt_file = os.path.join(out_dir,name+'.txt')
+
+        # define name of parameters - this will only work in ArcGIS Pro v2.9 or above
+        el_pt = r'FIND\Element Point'
+        el_ln = r'FIND\Element Line'
+        el_py = r'FIND\Element Polygon'
+        cm_pt = r'FIND\Community or Other Point'
+        cm_py = r'FIND\Community or Other Polygon'
+        species_list = r'FIND\\FIND2022.DBO.SpeciesList'
+        contact_list = r'FIND\\FIND2022.DBO.contacts'
+        et = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET'
+
+        with arcpy.da.SearchCursor(survey_site,['refcode','survey_start','survey_end','surveyors','survey_typ','survey_typ_comm','site_desc','disturb','threats']) as cursor:
+            for row in cursor:
+                refcode = row[0]
+                survey_start = row[1]
+                survey_end = row[2]
+                surveyors = row[3]
+                survey_type = row[4]
+                survey_type_comm = row[5]
+                site_desc = row[6]
+                disturb = row[7]
+                threats = row[8]
+
+        element_list = [el_pt,el_ln,el_py,cm_pt,cm_py]
+        elem_dict = {}
+        global_ids = []
+        key_id = 1
+        for elem in element_list:
+            with arcpy.da.SearchCursor(elem,["refcode","elem_name","elem_found","eo_rank","direc_elem","GlobalID"]) as cursor:
+                for row in cursor:
+                    if row[0] == refcode:
+                        elem_dict[key_id] = [int(row[1]),row[2],row[3],row[4]]
+                        global_ids.append(row[5])
+                        key_id += 1
+
+        with arcpy.da.SearchCursor(et,["ELSUBID","SNAME","SCOMNAME","SPROT","PBSSTATUS","EO_TRACK"]) as cursor:
+            for row in cursor:
+                for k,i in elem_dict.items():
+                    if i[0] == row[0]:
+                        elem_dict[k].append(row[1])
+                        elem_dict[k].append(row[2])
+                        elem_dict[k].append(row[3])
+                        elem_dict[k].append(row[4])
+                        elem_dict[k].append(row[5])
+
+        dups = []
+        elem_dict_nodups = {}
+        for key, val in elem_dict.items():
+            if val not in dups:
+                dups.append(val)
+                elem_dict_nodups[key] = val
+
+        for key, item in sorted(elem_dict_nodups.items()):
+            if item[6] == 'PE':
+                status = 'Endangered'
+            elif item[6] == 'PT':
+                status = 'Threatened'
+            elif item[6] == 'PR':
+                status = 'Rare'
+            elif item[6] == 'PV':
+                status = 'Vulnerable'
+            elif item[7] == 'W' or item[7] == 'WATCH':
+                status = 'Watch list'
+            elif item[7] == 'TU':
+                status = 'Undetermined'
+            elif item[7] == 'PE':
+                status = 'Endangered (proposed)'
+            elif item[7] == 'PT':
+                status = 'Threatened (proposed)'
+            elif item[7] == 'PR':
+                status = 'Rare (proposed)'
+            elif item[7] == 'PV':
+                status = 'Vulnerable (proposed)'
+            elif item[7] == 'PX':
+                status = 'Extirpated'
+            elif item[8] == 'W':
+                status = 'Watch list'
+            else:
+                status = item[6]
+            elem_dict_nodups[key].append(status)
+
+        elem_dict_filter = {}
+        for key, item in sorted(elem_dict_nodups.items()):
+            elem_dict_filter[key] = [item[5], item[4], item[1], item[9], item[2], item[3]]
+        for key, item in elem_dict_filter.items():
+            for x in range(6):
+                if item[x] is None:
+                    item[x] = '--'
+
+        landowners = []
+        with arcpy.da.SearchCursor(contact_list,["refcode","fname","lname"]) as cursor:
+            for row in cursor:
+                if row[0] == refcode:
+                    landowners.append(row[1]+" "+row[2])
+
+        species_dict = {}
+        with arcpy.da.SearchCursor(species_list,["refcode","elem_name","elem_found"]) as cursor:
+            for row in cursor:
+                if row[0] == refcode and row[2] != 'N':
+                    species_dict[int(row[1])] = []
+
+        with arcpy.da.SearchCursor(et, ["ELSUBID","SNAME","SCOMNAME","EO_TRACK"]) as cursor:
+            for row in cursor:
+                for k, i in species_dict.items():
+                    if k == row[0]:
+                        species_dict[k].append(row[1])
+                        species_dict[k].append(row[2])
+                        if row[3] == 'N':
+                            species_dict[k].append('No')
+                        elif row[3] == 'Y':
+                            species_dict[k].append('Yes')
+                        elif row[3] == 'W':
+                            species_dict[k].append('Watch')
+                        else:
+                            species_dict[k].append(row[3])
+
+        species_dict_filter = {k: v for k, v in species_dict.items() if len(v) != 0}
+
+        date_string = survey_start.strftime("%m/%d/%Y")
+        if survey_end is not None and survey_start != survey_end:
+            date_string = date_string+" - "+survey_end.strftime("%m/%d/%Y")
+        if survey_type == "QUAL":
+            survey_type = "Qualitative"
+        elif survey_type == "QUAN":
+            survey_type = "Quantitative"
+        else:
+            survey_type = ""
+        if survey_type_comm is not None and survey_type != "":
+            survey_type = survey_type + " - " + survey_type_comm
+        else:
+            survey_type = survey_type_comm
+
+        with open(txt_file,'w') as f:
+            f.write("SURVEY NAME"+"\n")
+            f.write(survey_name+"\n")
+            f.write("\n")
+            f.write("LANDOWNER(S)"+"\n")
+            f.write(", ".join(landowners)+"\n\n")
+            f.write("SURVEY DATE"+"\n")
+            f.write(date_string+"\n\n")
+            f.write("SURVEYORS"+"\n")
+            f.write(surveyors+"\n\n")
+            f.write("SITE DESCRIPTION"+"\n")
+            f.write(site_desc+"\n\n")
+            f.write("SURVEY TYPE"+"\n")
+            f.write(survey_type+"\n\n")
+            f.write("THREATS AND RECOMMENDATIONS"+"\n")
+            f.write(threats +"\n\n")
+
+        os.startfile(txt_file)
+
+        # write element list to .csv file
+        with open(os.path.join(out_dir,'FIND_ElementList_'+name+'.csv'), 'w', newline='') as csvfile:
+            csv_output = csv.writer(csvfile)
+            # write heading rows to .csv
+            csv_output.writerow(['Common Name','Latin Name','Found?','State Status','Population Rank*','Where Found'])
+            # write dictionary rows to .csv
+            for key in sorted(elem_dict_filter.keys()):
+                csv_output.writerow(elem_dict_filter[key])
+
+        os.startfile(os.path.join(out_dir,'FIND_ElementList_'+name+'.csv'))
+
+        # write species list to .csv file
+        with open(os.path.join(out_dir,'FIND_SpeciesList_'+name+'.csv'), 'w', newline='') as csvfile:
+            csv_output = csv.writer(csvfile)
+            # write heading rows to .csv
+            csv_output.writerow(['Latin Name','Common Name','Species tracked?'])
+            # write dictionary rows to .csv
+            for key in sorted(species_dict_filter.keys()):
+                csv_output.writerow(species_dict_filter[key])
+
+        os.startfile(os.path.join(out_dir,'FIND_SpeciesList_'+name+'.csv'))
+
+        for elem in element_list:
+            with arcpy.da.SearchCursor(elem, ['DATA','ATT_NAME','ATTACHMENTID','REL_GLOBALID']) as cursor:
+                for row in cursor:
+                    if row[3] in global_ids:
+                        attachment = row[0]
+                        filenum = "ATT" + str(row[2]) + "_"
+                        filename = filenum + str(row[1])
+                        open(fileLocation + os.sep + filename, 'wb').write(attachment.tobytes())

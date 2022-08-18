@@ -22,13 +22,13 @@ import arcpy
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-workspace = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2021.Working.pgh-gis0.sde"
-el_pt = r'{}\FIND2021.DBO.el_pt'.format(workspace)
-el_line = r'{}\FIND2021.DBO.el_line'.format(workspace)
-comm_poly = r'{}\FIND2021.DBO.comm_poly'.format(workspace)
-comm_pt = r'{}\FIND2021.DBO.comm_pt'.format(workspace)
-el_poly = r'{}\FIND2021.DBO.el_poly'.format(workspace)
-survey_poly = r'{}\FIND2021.DBO.survey_poly'.format(workspace)
+workspace = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis0.sde"
+el_pt = r'{}\FIND2022.DBO.el_pt'.format(workspace)
+el_line = r'{}\FIND2022.DBO.el_line'.format(workspace)
+comm_poly = r'{}\FIND2022.DBO.comm_poly'.format(workspace)
+comm_pt = r'{}\FIND2022.DBO.comm_pt'.format(workspace)
+el_poly = r'{}\FIND2022.DBO.el_poly'.format(workspace)
+survey_poly = r'{}\FIND2022.DBO.survey_poly'.format(workspace)
 
 input_features = [el_pt, el_line, comm_poly, comm_pt, el_poly, survey_poly]
 edit = arcpy.da.Editor(workspace)

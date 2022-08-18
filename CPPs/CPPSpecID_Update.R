@@ -30,7 +30,7 @@ dbDisconnect(db) # disconnect the db
 
 # merge ET information with spec ids
 spec_merge <- merge(x = spec_id, y = et, by = "ELSUBID", all.x = TRUE)
-spec_columns <- c("ELSUBID","ELCODE","SNAME","SCOMNAME","specid","specid_2","specid_3","specid_comments","EO_TRACK","ER_RULE","GRANK","SRANK","SRANK_CHGDT","SRANK_RVWDT","USESA","SPROT","PBSSTATUS","PBSDATE","PBSQUAL","SGCN","SGCN_COM","SENSITV_SP")
+spec_columns <- c("ELSUBID","ELCODE","SNAME","SCOMNAME","specid","specid_2","specid_3","specid_comments","EO_TRACK","ER_RULE","GRANK","SRANK","USESA","SPROT","PBSSTATUS","PBSDATE","PBSQUAL","SGCN","SGCN_COM","SENSITV_SP")
 spec_table <- spec_merge[,spec_columns]
 
 date <- gsub("-","",Sys.Date())
