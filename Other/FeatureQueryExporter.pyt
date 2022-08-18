@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------------
 # Name:        Feature Query Exporter
-# Purpose:
+# Purpose:     Allows users to input a csv file, select a column for query, and export features from an ArcGIS feature class that match those attributes.
 #
 # Author:      MMoore
 #
