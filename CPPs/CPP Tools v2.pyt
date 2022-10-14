@@ -1,12 +1,11 @@
 # -------------------------------------------------------------------------------
-# Name:        CPP Tools
-# Purpose:
+# Name: CPP Tools v2.0
+# Purpose: The CPP Tools v2.0 toolbox contains custom ArcGIS tools for drawing core and supporting CPPs. Tools in version
+# 2.0 are updated to run in ArcGIS Pro and to run with the CPP feature service.
 #
-# Author:      MMoore
-#
-# Created:     07/04/2020
-# Copyright:   (c) MMoore 2020
-# Licence:     <your licence>
+# Author: MMoore
+# Created: 07/04/2020
+# Updates:
 # -------------------------------------------------------------------------------
 
 # Import modules
@@ -14,10 +13,11 @@ import arcpy, time, datetime, sys, traceback
 from getpass import getuser
 from arcgis.features import FeatureLayer
 
-# Set tools to overwrite existing outputs
+# Set environment to overwrite existing outputs and use memory as default workspace
 arcpy.env.overwriteOutput = True
 arcpy.env.workspace = "memory"
 
+# define functions below
 def parameter(displayName, name, datatype, defaultValue=None, parameterType='Required', direction='Input',
               multiValue=False, filterList=None):
     '''This function defines the parameter definitions for a tool. Using this
@@ -41,32 +41,47 @@ def parameter(displayName, name, datatype, defaultValue=None, parameterType='Req
     return param
 
 def bufferFeatures(features, eoid, buff_dist):
+    '''This function buffers all source features with a particular input EO ID and outputs the geometry of the buffered
+    features.
+    '''
     in_features = []
     query = "EO_ID = {}".format(eoid)
-    # Create variables for naming feature layers and buffers
+    # Loop SF layers, buffer features, and add to in_features list.
     for n, fc in enumerate(features):
         arcpy.MakeFeatureLayer_management(fc, "sf_lyr{}".format(n), query)
         out = arcpy.Buffer_analysis("sf_lyr{}".format(n), "memory\\sf_buff{}".format(n), buff_dist)
         # Append buffers to in_features list
         in_features.append(out)
 
+    # spatially merge buffered feature and dissolve features
     sf_buff_union = arcpy.Union_analysis(in_features, "memory\\sf_buff_union")
     sf_buff = arcpy.Dissolve_management(sf_buff_union, "memory\\sf_buff")
 
+    # get geometry token
     with arcpy.da.SearchCursor(sf_buff, 'SHAPE@') as cursor:
         for row in cursor:
             geom = row[0]
     return geom
 
 def calc_attr_core(eoid, eo_ptreps, specID=None, drawn_notes=None):
+    ''' This function calculates the attributes for a CPP core for a particular eoid. eo_ptreps from the Biotics
+    feature class is used to calculate sname, elsubid, and biotics export date, so the Biotics feature service must
+    be added to the Pro project. Specid and drawn_notes are optional parameters that can be calculated if values are
+    provided.
+    '''
+    # Make query using eoid
     query = "EO_ID = {}".format(eoid)
+
+    # Get sname, elsubid, and exptdate for EO from eo_ptreps layer
     with arcpy.da.SearchCursor(eo_ptreps, ["SNAME", "ELSUBID", "EXPT_DATE"], query) as cursor:
         for row in cursor:
             sname = row[0]
             elsubid = row[1]
             expt_date = row[2].strftime("%m/%d/%Y")
+    # Get date and username
     date = datetime.datetime.today().strftime("%m/%d/%Y")
     user = getuser()
+    # Set specID and drawn notes if entered by user
     if specID:
         SpecID = specID
     else:
@@ -75,12 +90,12 @@ def calc_attr_core(eoid, eo_ptreps, specID=None, drawn_notes=None):
         drawn_notes = drawn_notes
     else:
         drawn_notes = None
+    # return attribute values in specific CPP schema order
     values = [sname, eoid, user, date, drawn_notes, "r", SpecID, elsubid, expt_date]
     return values
 
 def calc_attr_slp(core_lyr, specID=None, drawn_notes=None):
-    with arcpy.da.SearchCursor(core_lyr,
-                               ["SNAME", "EO_ID", "Project", "SpecID", "ELSUBID", "BioticsExportDate"]) as cursor:
+    with arcpy.da.SearchCursor(core_lyr, ["SNAME", "EO_ID", "Project", "SpecID", "ELSUBID", "BioticsExportDate"]) as cursor:
         for row in cursor:
             sname = row[0]
             eoid = row[1]
@@ -149,13 +164,17 @@ def localWatershed(input_poly, lidar_gdb, pa_county):
 
     return watershed_geom
 
-def supportingWatershed(core, watershed_geom, slp_buff, slp_limit):
-    watershed_limit = arcpy.Buffer_analysis(core, "memory\\watershed_limit", slp_limit)
-    watershed_clip = arcpy.Clip_analysis(watershed_geom, watershed_limit, "memory\\watershed_clip")
+def supportingWatershed(core, watershed_geom, slp_buff, slp_limit = None):
+    if slp_limit:
+        watershed_limit = arcpy.Buffer_analysis(core, "memory\\watershed_limit", slp_limit)
+        watershed_clip = arcpy.Clip_analysis(watershed_geom, watershed_limit, "memory\\watershed_clip")
+    else:
+        watershed_clip = arcpy.FeatureClassToFeatureClass_conversion(watershed_geom, "memory", "watershed_clip")
     core_buff = arcpy.Buffer_analysis(core, "memory\\core_buff", slp_buff)
 
     slp_union = arcpy.Union_analysis([watershed_clip, core_buff], "memory\\slp_union")
-    slp_shape = arcpy.Dissolve_management(slp_union, "memory\\slp_shape")
+    merge_to_poly = arcpy.FeatureToPolygon_management(slp_union, "memory\\merge_to_poly")
+    slp_shape = arcpy.Dissolve_management(merge_to_poly, "memory\\slp_shape")
 
     with arcpy.da.SearchCursor(slp_shape, "SHAPE@") as cursor:
         for row in cursor:
@@ -2454,6 +2473,7 @@ class GeneralWatershedSupportingTool(object):
         self.params = [
             parameter("Selected CPP Core", "core", "GPFeatureLayer", "CPPEdit\\CPP Core"),
             parameter("Minimum Buffer Distance", "buff_dist", "GPLinearUnit"),
+            parameter("Maximum Distance", "max_dist", "GPLinearUnit", defaultValue=None, parameterType='Optional'),
             parameter("LiDAR GDB", "lidar_gdb", "DEWorkspace"),
             parameter("PA County Layer", "pa_county", "GPFeatureLayer"),
             parameter("Supporting CPP Layer", "slp", "GPFeatureLayer", "CPPEdit\\CPP Supporting")]
@@ -2464,12 +2484,16 @@ class GeneralWatershedSupportingTool(object):
     def execute(self, params, messages):
         core = params[0].valueAsText
         buff_dist = params[1].valueAsText
-        lidar_gdb = params[2].valueAsText
-        pa_county = params[3].valueAsText
-        slp = params[4].valueAsText
+        max_dist = params[2].valueAsText
+        lidar_gdb = params[3].valueAsText
+        pa_county = params[4].valueAsText
+        slp = params[5].valueAsText
 
         watershed_geom = localWatershed(core, lidar_gdb, pa_county)
-        slp_geom = supportingWatershed(core, watershed_geom, buff_dist, 10000)
+        if max_dist:
+            slp_geom = supportingWatershed(core, watershed_geom, buff_dist, max_dist)
+        else:
+            slp_geom = supportingWatershed(core, watershed_geom, buff_dist)
 
         values = calc_attr_slp(core, drawn_notes="Used CPP watershed tool.")
         values.append(slp_geom)

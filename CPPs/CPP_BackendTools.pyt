@@ -118,7 +118,7 @@ class CPPcriteria(object):
 
 class SelectIdentical(object):
     def __init__(self):
-        self.label = "Select CPPs with identical values in chosen field"
+        self.label = "Select CPPs with identical EOIDs"
         self.description = ""
         self.canRunInBackground = False
 

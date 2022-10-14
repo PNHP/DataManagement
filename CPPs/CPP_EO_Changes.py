@@ -10,8 +10,8 @@
 #### CAN RUN ON WPC APPS
 
 # SET DATE RANGE!!!!!!!!!!!!
-date1 = "06/29/2022"
-date2 = "07/28/2022"
+date1 = "08/28/2022"
+date2 = "09/29/2022"
 
 #import packages
 import arcpy
