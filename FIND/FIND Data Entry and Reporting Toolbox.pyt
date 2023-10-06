@@ -13,11 +13,10 @@ Update Notes: 03/2022 - updated path names to FIND2022 feature service, updated 
 ## Import packages and define environment settings
 ######################################################################################################################################################
 
-import arcpy,time,datetime,os,sys,string
-from getpass import getuser
+import arcpy, datetime,os,sys
 import csv
 import shutil
-from FIND_et_2022 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
+from FIND_et_2023 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
 
 arcpy.env.overwriteOutput = True
 
@@ -145,10 +144,8 @@ class NegativeDataEntryTool(object):
             elem_poly = r"FIND\Element Polygon"
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
-        if pro_version < 2.9:
-            species_table = r"FIND2022.DBO.SpeciesList"
-        else:
-            species_table = r"FIND\\FIND2022.DBO.SpeciesList"
+
+        species_table = r"FIND\Species List"
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(survey_site)
@@ -498,12 +495,9 @@ class PermissionDeniedTool(object):
             elem_poly = r"FIND\Element Polygon"
         else:
             elem_poly = r"PNHP\FIND\Element Polygon"
-        if pro_version < 2.9:
-            nf_target = r"FIND2022.DBO.nf_target"
-            contacts = r'FIND2022.DBO.Contacts'
-        else:
-            nf_target = r"FIND\\FIND2022.DBO.nf_target"
-            contacts = r'FIND\\FIND2022.DBO.Contacts'
+
+        nf_target = r"FIND\Needs Found Table"
+        contacts = r'FIND\Contacts'
 
         # check that only one survey site is selected - error out if not
         desc = arcpy.Describe(potential_site)
@@ -517,10 +511,11 @@ class PermissionDeniedTool(object):
             pass
 
         # get attributes from selected survey site to use later
-        with arcpy.da.SearchCursor(potential_site,["prop_surv_site_n","SHAPE@"]) as cursor:
+        with arcpy.da.SearchCursor(potential_site,["survey_name","SHAPE@","GlobalID"]) as cursor:
             for row in cursor:
                 site_name = row[0]
                 geom = row[1]
+                GlobalID = row[2]
 
         # check that user input reference code matches reference code of selected survey site
         if site_name is None:
@@ -572,8 +567,8 @@ class PermissionDeniedTool(object):
         else:
             followup = "N"
 
-        values = [refcode,site_name,parcel_id,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
-        fields = ["refcode","prop_surv_site_n","parcelID","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
+        values = [refcode,site_name,parcel_id,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm,GlobalID]
+        fields = ["refcode","prop_surv_site_n","parcelID","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm","pot_rel_GlobalID"]
         with arcpy.da.InsertCursor(contacts,fields) as cursor:
             cursor.insertRow(values)
 
@@ -631,8 +626,8 @@ class PermissionDeniedTool(object):
                     cursor.insertRow(values)
 
                 # insert new negative record into nf species list
-                values = [site_name,elem_type,elem_name,"nc"]
-                fields = ["prop_surv_site_n","target_type","target_el","survey_status"]
+                values = [site_name,elem_type,elem_name]
+                fields = ["survey_name","elem_type","elem_name"]
                 with arcpy.da.InsertCursor(nf_target,fields) as cursor:
                     cursor.insertRow(values)
 
@@ -664,10 +659,7 @@ class ListLoader(object):
     def execute(self, parameters, messages):
         # define species list Excel file that was exported from ListMaster and the Species List table name
         sp_list = r'H:\specieslist_find.xls'
-        if pro_version < 2.9:
-            sp_table = r"FIND2022.DBO.SpeciesList"
-        else:
-            sp_table = r"FIND\\FIND2022.DBO.SpeciesList"
+        sp_table = r"FIND\Species List"
 
         # convert the excel species list into a temporary ArcGIS table
         table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","tabled"), "out_SpeciesList")
@@ -853,12 +845,8 @@ class SpeciesLocator(object):
             survey_site = r'PNHP\FIND\Survey Site'
             ref_poly = r'PNHP\FIND\Reference Area Polygon'
 
-        if pro_version < 2.9:
-            species_list = r"FIND2022.DBO.SpeciesList"
-            ref_keyword = r"FIND2022.DBO.ref_keyword"
-        else:
-            species_list = r"FIND\\FIND2022.DBO.SpeciesList"
-            ref_keyword = r"FIND\\FIND2022.DBO.ref_keyword"
+        species_list = r"FIND\Species List"
+        ref_keyword = r"FIND\Reference Keyword Table"
 
         # create list of features to check for selections
         listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
@@ -1334,10 +1322,7 @@ class ParcelContactCreator(object):
         else:
             find_parcels = r'PNHP\FIND\Parcels'
 
-        if pro_version < 2.9:
-            contacts = r'FIND2022.DBO.Contacts'
-        else:
-            contacts = r'FIND\\FIND2022.DBO.Contacts'
+        contacts = r'FIND\Contacts'
 
         # check that only one parcel is selected - error out if not
         desc = arcpy.Describe(parcel)
@@ -1507,8 +1492,8 @@ class SurveySiteReport(object):
         el_py = r'FIND\Element Polygon'
         cm_pt = r'FIND\Community or Other Point'
         cm_py = r'FIND\Community or Other Polygon'
-        species_list = r'FIND\\FIND2022.DBO.SpeciesList'
-        contact_list = r'FIND\\FIND2022.DBO.contacts'
+        species_list = r'FIND\Species List'
+        contact_list = r'FIND\Contacts'
         et = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET'
 
         with arcpy.da.SearchCursor(survey_site,['refcode','survey_start','survey_end','surveyors','survey_typ','survey_typ_comm','site_desc','disturb','threats']) as cursor:

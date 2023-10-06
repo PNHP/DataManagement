@@ -18,7 +18,7 @@ from arcpy.sa import *
 #set environmental variables
 arcpy.env.overwriteOutput = True
 arcpy.env.qualifiedFieldNames = False
-arcpy.env.workspace = "in_memory"
+arcpy.env.workspace = "memory"
 
 class Toolbox(object):
     def __init__(self):
@@ -185,7 +185,8 @@ class TerrestrialGrouping(object):
         species_code_field = params[13].valueAsText
         sf_include = params[14].valueAsText
 
-        arcpy.env.workspace = "in_memory"
+        arcpy.env.workspace = "memory"
+        scratch_gdb = os.path.dirname(in_points)
 
         arcpy.AddMessage("Preparing input data...")
         #if using sf lines and polygons, all layers are buffered by 1m and merged. Otherwise, just points are buffered by 1m.
@@ -228,7 +229,7 @@ class TerrestrialGrouping(object):
                     cursor.updateRow(row)
                     join_id+=1
             arcpy.Buffer_analysis(i,o,1)
-        data_merge = arcpy.Merge_management(data_out,"data_merge")
+        data_merge = arcpy.Merge_management(data_out,os.path.join("memory","data_merge"))
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
         #updated to account for double and float field types
@@ -417,11 +418,13 @@ class TerrestrialGrouping(object):
 
         add_fields=add_fields_int+add_fields_text
         for data in data_in:
-            arcpy.JoinField_management(data,"join_id",data_lyr,"join_id",add_fields)
+            arcpy.AddMessage(data)
+            arcpy.AddMessage(data_lyr)
+            arcpy.management.JoinField(data,"join_id",os.path.join("memory","data_merge"),"join_id",add_fields)
             arcpy.DeleteField_management(data,"join_id")
             arcpy.DeleteField_management(data,"buff_dist")
 
-        arcpy.Delete_management("in_memory")
+        arcpy.Delete_management("memory")
         return
 
 class AquaticGrouping(object):
@@ -599,7 +602,7 @@ class AquaticGrouping(object):
         sf_include = params[16].valueAsText
 
         arcpy.env.overwriteOutput = True
-        arcpy.env.workspace = "in_memory"
+        arcpy.env.workspace = "memory"
 
         arcpy.AddMessage("Preparing input data for use in EO/SF assignment.")
         data_in = []
@@ -624,7 +627,7 @@ class AquaticGrouping(object):
                     join_id1+=1
             arcpy.FeatureVerticesToPoints_management(i,o,"ALL")
         species_pt = arcpy.Merge_management(data_out,"data_merge")
-        species_pt_copy = arcpy.FeatureClassToFeatureClass_conversion(species_pt,"in_memory","species_pt_copy")
+        species_pt_copy = arcpy.FeatureClassToFeatureClass_conversion(species_pt,"memory","species_pt_copy")
 
         #prepare single fc from biotics sf fcs
         sfs_in = [eo_sourcept]
@@ -682,7 +685,7 @@ class AquaticGrouping(object):
         for species in species_list:
             arcpy.AddMessage("Assigning EO for "+str(species_rep)+"/"+str(total_species)+": "+str(species))
             species_rep+=1
-            s = arcpy.FeatureClassToFeatureClass_conversion(species_pt_copy,"in_memory","s",species_query.format(species_code,species))
+            s = arcpy.FeatureClassToFeatureClass_conversion(species_pt_copy,"memory","s",species_query.format(species_code,species))
             eo = arcpy.MakeFeatureLayer_management(eo_reps,"eo",eo_species_query.format(species_code_field,species))
             sf_lyr = arcpy.MakeFeatureLayer_management(sf_merge,"sf_lyr",eo_species_query.format(species_code_field,species))
             for k,v in lu_sep.items():
@@ -864,6 +867,6 @@ class AquaticGrouping(object):
 
         for data in data_in:
             arcpy.DeleteField_management(data,"join_id")
-        arcpy.Delete_management("in_memory")
+        arcpy.Delete_management("memory")
 
         return

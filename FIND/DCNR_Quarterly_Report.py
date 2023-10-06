@@ -27,30 +27,30 @@ quarter = raw_input("Enter the quarter for the report (type q1, q2, q3, q4): ")
 year = raw_input("Enter the year for the report (YYYY): ")
 
 if quarter.lower() == 'q1':
-    q = 04
+    q = 4
 elif quarter.lower() == 'q2':
-    q = 07
+    q = 7
 elif quarter.lower() == 'q3':
     q = 10
 elif quarter.lower() == 'q4':
-    q = 01
+    q = 1
     year = int(year) + 1
 else:
-    print "You have not entered a valid response."
+    print("You have not entered a valid response.")
 
 # define env.workspace - this space is used for all temporary files
 env.workspace = r'in_memory'
 
 # file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND2022.DBO.el_pt", "FIND2022.DBO.el_line","FIND2022.DBO.el_poly", "FIND2022.DBO.comm_poly",
-"FIND2022.DBO.comm_pt",  "FIND2022.DBO.survey_poly"]
+input_features = ["FIND2023.DBO.el_pt", "FIND2023.DBO.el_line","FIND2023.DBO.el_poly", "FIND2023.DBO.comm_poly",
+"FIND2023.DBO.comm_pt",  "FIND2023.DBO.survey_poly"]
 
 # file names that are used for temporary element tables
 elementTables = ["element_point", "element_line", "element_poly", "community_poly",
 "community_point", "survey_poly"]
 
 # path to FIND enterprise database
-elementGDB = r"Database Connections\\FIND2022.Working.pgh-gis0.sde"
+elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2023_Working_pgh-gis0.sde"
 
 reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports\DCNR Quarterly FIND Reports'
 
@@ -149,6 +149,6 @@ def elementType():
     filename = "FIND Quarterly Report " + time.strftime("%d%b%y")+".xls"
     outTable = os.path.join(reportPath, filename)
     arcpy.TableToExcel_conversion(pivotTable, outTable)
-    print "DCNR FIND Quarterly Report Created!"
+    print("DCNR FIND Quarterly Report Created!")
 
 elementType()

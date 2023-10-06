@@ -79,6 +79,7 @@ class BioticsUpdate(object):
         eo_sourcept = r'eo_sourcept'
         eo_sourceln = r'eo_sourceln'
         eo_sourcepy = r'eo_sourcepy'
+        et_changes_fs = r'ET_changes'
 
         fs_ptreps = os.path.join(str(pnhp_db),biotics_db_path+eo_ptreps)
         fs_reps = os.path.join(str(pnhp_db),biotics_db_path+eo_reps)
@@ -86,6 +87,7 @@ class BioticsUpdate(object):
         fs_sourceln = os.path.join(str(pnhp_db),biotics_db_path+eo_sourceln)
         fs_sourcepy = os.path.join(str(pnhp_db),biotics_db_path+eo_sourcepy)
         fs_et = os.path.join(str(pnhp_db),"PNHP.DBO.ET")
+        et_change_server = os.path.join(str(pnhp_db), r"PNHP.DBO.ET_changes")
 
         gdb_ptreps = os.path.join(gdb,eo_ptreps)
         gdb_reps = os.path.join(gdb,eo_reps)
@@ -98,10 +100,10 @@ class BioticsUpdate(object):
         et_new = gdb_et
         et_change = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET_changes'
 
+
         with arcpy.da.SearchCursor(gdb_sourceln,"EXPT_DATE") as cursor:
             for row in cursor:
                 export_date = row[0]
-
         old_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_old,"ELSUBID")})
         new_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_new,"ELSUBID")})
 
@@ -114,6 +116,8 @@ class BioticsUpdate(object):
             values = [a,"ELSUBID addition",None,a,export_date]
             with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
                 cursor.insertRow(values)
+            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+                cursor.insertRow(values)
 
         #records in old_elsubids that are not in new_elsubids, so therefore classified as deleted
         arcpy.AddMessage("Checking for ELSUBID deletions")
@@ -122,9 +126,10 @@ class BioticsUpdate(object):
             values = [d,"ELSUBID deletion",d,None,export_date]
             with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
                 cursor.insertRow(values)
+            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+                cursor.insertRow(values)
 
         old_et_dict = {int(row[0]):[row[1:]] for row in arcpy.da.SearchCursor(et_old,["ELSUBID","ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"])}
-
 
         change_fields = ["ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"]
         dict_value_index = [0,1,2,3,4,5,6,7,8,9,10,11]
@@ -140,19 +145,22 @@ class BioticsUpdate(object):
                                 values = [int(row[0]), c, v[0][i], row[1], export_date]
                                 with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
                                     cursor.insertRow(values)
+                                with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
+                                    cursor.insertRow(values)
 
         fs_layers = [fs_ptreps,fs_reps,fs_sourcept,fs_sourceln,fs_sourcepy,fs_et]
         gdb_layers = [gdb_ptreps,gdb_reps,gdb_sourcept,gdb_sourceln,gdb_sourcepy,gdb_et]
 
         edit = arcpy.da.Editor(pnhp_db)
-        edit.startEditing(True,True)
+        edit.startEditing(False,False)
         edit.startOperation()
 
         for fs,g in zip(fs_layers,gdb_layers):
             arcpy.AddMessage("Deleting features from: "+fs)
-            with arcpy.da.UpdateCursor(fs,'*') as cursor:
+            with arcpy.da.UpdateCursor(fs,'OBJECTID') as cursor:
                 for row in cursor:
-                    cursor.deleteRow()
+                    if row[0] is not None:
+                        cursor.deleteRow()
 
         for fs,g in zip(fs_layers,gdb_layers):
             arcpy.AddMessage("Appending features to: "+fs)

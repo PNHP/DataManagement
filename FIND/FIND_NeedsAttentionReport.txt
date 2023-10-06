@@ -1,0 +1,174 @@
+################################################################
+
+Welcome to the FIND Record Report!
+Updated: 01/30/23 10:35:AM
+
+################################################################
+
+You have 4 incomplete records in the Survey Site layer:
+
+Reference Code, DM Status, Created User, Created Date
+F19BRA22,  dmpend,  MMOORE,  2019-06-17 19:37:14.000001
+TESTING,  dr,  mmooreWPC,  2023-01-26 15:14:44
+F23MOO01,  dr,  mmooreWPC,  2023-01-26 18:35:59
+TESTING5,  dr,  mmooreWPC,  2023-01-26 15:56:27.000001
+
+################################################################
+
+You have 22 incomplete records in the Element Points layer:
+
+Reference Code, DM Status, Created User, Created Date
+F17MCP11,  dr,  MMOORE,  2017-08-08 16:26:05
+F17MCP11,  dr,  MMOORE,  2017-08-08 16:26:05
+F17MCP11,  dr,  MMOORE,  2017-08-08 16:26:05
+F16ZIM03,  dr,  mmooreWPC,  2021-01-12 17:54:13
+F16ZIM08,  dr,  mmooreWPC,  2021-01-12 17:54:13
+F16ZIM15,  dr,  mmooreWPC,  2021-01-12 17:54:13
+F16ZIM20,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F16ZIM28,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F16ZIM3,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F16ZIM35,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F16ZIM40,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F16ZIM44,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F17ZIM08,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F17ZIM08,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F18ZIM11,  dr,  mmooreWPC,  2021-01-12 17:54:14
+F20ZIM19,  dr,  mmooreWPC,  2021-01-12 17:54:15
+F20ZIM19,  dr,  mmooreWPC,  2021-01-12 17:54:15
+F20ZIM19,  dr,  mmooreWPC,  2021-01-12 17:54:15
+TESTING_!,  dr,  mmooreWPC,  2022-11-07 15:11:20
+TEST,  dr,  mmooreWPC,  2022-11-07 15:10:20
+None,  dr,  mmooreWPC,  2023-01-26 15:58:10
+F23MOO01,  dr,  mmooreWPC,  2023-01-26 18:34:51
+
+################################################################
+
+You do not have any incomplete records in the Element Lines layer. Congratulations!
+
+################################################################
+
+You have 5 incomplete records in the Element Polygons layer:
+
+Reference Code, DM Status, Created User, Created Date
+None,  dr,  mmooreWPC,  2023-01-26 15:59:05
+TESTING5,  dr,  mmooreWPC,  2023-01-26 17:33:42
+PTEST,  dr,  mmooreWPC,  2023-01-26 17:50:31.000001
+PTEST,  dr,  mmooreWPC,  2023-01-26 17:51:28
+PTEST,  dr,  mmooreWPC,  2023-01-26 17:52:45
+
+################################################################
+
+You have 93 incomplete records in the Community Points layer:
+
+Reference Code, DM Status, Created User, Created Date
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:54
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:55
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:56
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:57
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:58
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM02,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM03,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM06,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM05,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM06,  dr,  mmooreWPC,  2021-01-12 15:42:59
+F16ZIM05,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM06,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM06,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F15ZIM05,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM15,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM14,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM15,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM16,  dr,  mmooreWPC,  2021-01-12 15:43:00
+F16ZIM16,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM20,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM22,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM23,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM24,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM24,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM26,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM27,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM28,  dr,  mmooreWPC,  2021-01-12 15:43:01
+F16ZIM35,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM35,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM36,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM40,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM43,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM43,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM43,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM44,  dr,  mmooreWPC,  2021-01-12 15:43:02
+F16ZIM44,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F16ZIM46,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F16ZIM47,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F16ZIM43,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F16ZIM43,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F16ZIM52,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F17ZIM04,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F17ZIM05,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F17ZIM06,  dr,  mmooreWPC,  2021-01-12 15:43:03.000001
+F17ZIM06,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F17ZIM06,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F17ZIM08,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F17ZIM08,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F17ZIM11,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F17ZIM11,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F18ZIM10,  dr,  mmooreWPC,  2021-01-12 15:43:04
+F18ZIM11,  idrev,  mmooreWPC,  2021-01-12 15:43:04
+F18ZIM12,  dr,  mmooreWPC,  2021-01-12 15:43:05
+F20ZIM19,  dr,  mmooreWPC,  2021-01-12 15:43:05
+
+################################################################
+
+You have 10 incomplete records in the Community Polygons layer:
+
+Reference Code, DM Status, Created User, Created Date
+F16ZIM01,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F15ZIM05,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F15ZIM05,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F16ZIM15,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F16ZIM14,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F16ZIM20,  dr,  mmooreWPC,  2021-01-12 17:25:19
+F16ZIM19,  dr,  mmooreWPC,  2021-01-12 17:25:20
+F16ZIM22,  dr,  mmooreWPC,  2021-01-12 17:25:20
+F16ZIM28,  dr,  mmooreWPC,  2021-01-12 17:25:20
+F17ZIM05,  dr,  mmooreWPC,  2021-01-12 17:25:20
+
+################################################################

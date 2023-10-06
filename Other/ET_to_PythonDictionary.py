@@ -11,7 +11,7 @@
 
 import pandas as pd
 
-et_folder = r'H:\FIND\DM Documentation\ET\20220228_'
+et_folder = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\DM Documentation\ET\20230314_'
 et_comm = r'ET_COMMOTH'
 et_insect = r'ET_INSECT'
 et_invert = r'ET_INVERT'
@@ -20,7 +20,7 @@ et_plant = r'ET_PLANT'
 et_vert = r'ET_VERT'
 et_all = r'ET'
 
-all_excel = [et_comm,et_insect,et_invert,et_lep,et_plant,et_vert]
+all_excel = [et_comm,et_insect,et_invert,et_lep,et_plant,et_vert,et_all]
 
 def loadExcel(in_sheet):
     df = pd.read_excel(io=in_sheet, sheet_name="Sheet1")

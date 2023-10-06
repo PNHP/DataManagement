@@ -30,29 +30,22 @@ env.workspace = r'in_memory'
 # Define global variables and functions to be used throughout toolbox
 ################################################################################
 
-# file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND2022.DBO.el_pt", "FIND2022.DBO.el_line", "FIND2022.DBO.comm_poly", "FIND2022.DBO.comm_pt", "FIND2022.DBO.el_poly", "FIND2022.DBO.survey_poly"]
-
-# file names that are used for temporary output element feature classes
-elementShapefiles = ["element_point", "element_line", "community_poly", "community_point", "element_poly", "survey_site"]
-
-# file names that are used for temporary element tables
-elementTables = ["element_point1", "element_line1","community_poly1", "community_point1", "element_poly1", "survey_site1"]
-
-# path to FIND enterprise database
-elementGDB = r"C:\Users\MMoore\AppData\Roaming\ESRI\Desktop10.7\ArcCatalog\FIND2022.Working.pgh-gis0.sde"
-
-# path to county layer
+# define paths
+elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2023_Working_pgh-gis0.sde"
 counties = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\StateLayers_Default_pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
-
-# path to Biotics ET
 et = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.ET"
 
-# path to folder where DM reports will be saved as Excel files
+# define input and output features
+input_features = ["FIND2023.DBO.el_pt", "FIND2023.DBO.el_line", "FIND2023.DBO.comm_poly", "FIND2023.DBO.comm_pt", "FIND2023.DBO.el_poly", "FIND2023.DBO.survey_poly"]
+elementShapefiles = ["element_point", "element_line", "community_poly", "community_point", "element_poly", "survey_site"]
+elementTables = ["element_point1", "element_line1", "community_poly1", "community_point1", "element_poly1", "survey_site1"]
+
+# define report path
 ReportsPath = r"P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports"
 
 for i, shape_output, table_output in zip(input_features, elementShapefiles, elementTables):
     target_features = os.path.join(elementGDB, i)
+    print(target_features)
     element_features = os.path.join(env.workspace, shape_output)
 
     # create fieldmap

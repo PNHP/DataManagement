@@ -42,9 +42,23 @@ class CSVQueryExport(object):
         self.canRunInBackground = False
 
     def getParameterInfo(self):
-        export_lyr = arcpy.Parameter(
+        export_lyr1 = arcpy.Parameter(
             displayName="Export Layer (layer from which features will be exported)",
-            name="export_lyr",
+            name="export_lyr1",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+
+        export_lyr2 = arcpy.Parameter(
+            displayName="Export Layer (layer from which features will be exported)",
+            name="export_lyr2",
+            datatype="GPFeatureLayer",
+            parameterType="Required",
+            direction="Input")
+
+        export_lyr3 = arcpy.Parameter(
+            displayName="Export Layer (layer from which features will be exported)",
+            name="export_lyr3",
             datatype="GPFeatureLayer",
             parameterType="Required",
             direction="Input")
@@ -78,14 +92,7 @@ class CSVQueryExport(object):
             parameterType="Required",
             direction="Output")
 
-        query_string = arcpy.Parameter(
-            displayName="Check here if query list in .csv are numbers that should be read as strings",
-            name="query_string",
-            datatype="GPBoolean",
-            parameterType="Required",
-            direction="Input")
-
-        params = [export_lyr, export_query_fld, csv_tbl, csv_field, output_fc, query_string]
+        params = [export_lyr1, export_lyr2, export_lyr3, export_query_fld, csv_tbl, csv_field, output_fc]
         return params
 
     def isLicensed(self):
@@ -98,20 +105,25 @@ class CSVQueryExport(object):
         return
 
     def execute(self, params, messages):
-        export_lyr = params[0].valueAsText
+        export_lyr1 = params[0].valueAsText
+        export_lyr2 = params[0].valueAsText
+        export_lyr3 = params[0].valueAsText
         export_query_field = params[1].valueAsText
         csv_tbl = params[2].valueAsText
         csv_field = params[3].valueAsText
         output_fc = params[4].valueAsText
-        query_string = params[5].valueAsText
+
+        export_lyrs = [export_lyr1,export_lyr2,export_lyr3]
+
+        merge_features = []
+        for export in export_lyrs:
+            buff = arcpy.Buffer_analysis(export,"buff","50 Meters")
+            merge_features.append(buff)
+
+        export_lyr = arcpy.Merge_management(merge_features,"export_lyr")
 
         df = pd.read_csv(csv_tbl)
         query_list = df["{}".format(csv_field)].values.tolist()
-
-        if query_string:
-            query_list = [str(x) for x in query_list]
-        else:
-            pass
 
         if arcpy.ListFields(export_lyr,export_query_field)[0].type == 'Integer' or arcpy.ListFields(export_lyr,export_query_field)[0].type == 'Double' or arcpy.ListFields(export_lyr,export_query_field)[0].type == 'Float':
             where_clause = "{} in {}".format(export_query_field,tuple(query_list))
@@ -121,12 +133,3 @@ class CSVQueryExport(object):
         # query_lyr = arcpy.MakeFeatureLayer_management(export_lyr,"query_lyr",where_clause=where_clause)
 
         output = arcpy.FeatureClassToFeatureClass_conversion(export_lyr,os.path.dirname(output_fc),os.path.basename(output_fc),where_clause=where_clause)
-
-        with arcpy.da.SearchCursor(output,export_query_field) as cursor:
-            output_ids = sorted({row[0] for row in cursor})
-
-        output_df = pd.DataFrame(output_ids,columns=['exported_features'])
-
-        merge = pd.merge(df,output_df[['exported_features']],left_on=csv_field,right_on='exported_features',how='outer')
-
-        merge.to_csv(os.path.join(os.path.dirname(csv_tbl),os.path.basename(csv_tbl)+"_ExportedFeatures.csv"),index=False)
