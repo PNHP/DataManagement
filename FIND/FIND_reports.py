@@ -302,7 +302,7 @@ print("DM Status Reports Created!")
 ## Create Biologist Reports
 ################################################################################
 
-user_last = ["albert","braund","eichelberger","furedi","gipe","gleason","goad","grund","hnatkovich","johnson","kunsman","mcpherson","miller","pulver","rohrbaug","ryndock","schuette","stauffer","tracey","walsh","watts","wisgo","woods","yeany","zimmerman"]
+user_last = ["albert","braund","eichelberger","furedi","gipe","gleason","goad","grund","hnatkovich","johnson","kunsman","mcpherson","miller","pulver","rohrbaug","ryndock","schuette","stauffer","tracey","walsh","watts","wisgo","woods","yawn","yeany","zimmerman"]
 refcode_inits = []
 
 # create dictionary for all users and create .csv
