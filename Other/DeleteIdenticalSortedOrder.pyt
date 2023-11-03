@@ -28,7 +28,7 @@ class DeleteDups(object):
         input_dataset = arcpy.Parameter(
             displayName="Dataset with duplicates to remove",
             name="input_dataset",
-            datatype="DETable",
+            datatype=["DETable", "GPFeatureLayer"],
             parameterType="Required",
             direction="Input")
 
