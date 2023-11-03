@@ -28,7 +28,7 @@ class DeleteDups(object):
         input_dataset = arcpy.Parameter(
             displayName="Dataset with duplicates to remove",
             name="input_dataset",
-            datatype="DETable",
+            datatype="GPTableView",
             parameterType="Required",
             direction="Input")
 
@@ -87,7 +87,14 @@ class DeleteDups(object):
             arcpy.AddMessage("Hmmm... Something is up with your sort direction...")
 
         # create copy of input feature class from which to delete features
-        output_fc = arcpy.ExportFeatures_conversion(input_dataset,output_fc)
+        desc = arcpy.Describe(input_dataset)
+        if desc.dataType == "FeatureClass" or desc.dataType == "FeatureLayer":
+            output_fc = arcpy.ExportFeatures_conversion(input_dataset,output_fc)
+        elif desc.dataType == "Table" or desc.dataType == "TableView":
+            output_fc = arcpy.ExportTable_conversion(input_dataset,output_fc)
+        else:
+            arcpy.AddError("There is a problem with your input dataset.")
+            sys.exit()
 
         # get list of all unique rows of field values from user input group fields
         groups = sorted({row for row in arcpy.da.SearchCursor(output_fc, group_fields)})

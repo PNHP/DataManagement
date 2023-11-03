@@ -190,7 +190,7 @@ print("ID Reviewers Status Report Created!")
 # if record is marked as archived and not listed as dm ready, tag as archived
 with arcpy.da.UpdateCursor(elementRecords,["dm_stat","archive"]) as cursor:
     for row in cursor:
-        if row[1] == 'Y' and row[0] != "dmready":
+        if row[1] == 'Y' and (row[0] != "dmready" and row[0] != "dmproc"):
             row[0] = "Archived"
             cursor.updateRow(row)
 
