@@ -283,8 +283,8 @@ class TerrestrialGrouping(object):
                     pass
                 else:
                     sname = row[3]
-                    #separation distance plus 8m for mmu (in addition to the 1m buffer on input data)
-                    distance = (row[4]*1000)+8
+                    # convert separation distance into meters
+                    distance = (row[4]*1000)
                     #add LU distance if LU type is estimated
                     if loc_uncert_dist:
                         if row[5].lower() == "estimated":
@@ -300,7 +300,7 @@ class TerrestrialGrouping(object):
                     arcpy.SelectLayerByAttribute_management(data_lyr, "NEW_SELECTION", "{}={}".format(objectid_field,objectid))
                     #check for existing EO reps within separation distance of feature
                     arcpy.SelectLayerByAttribute_management(eo_reps, 'NEW_SELECTION', eo_species_query.format(species_code_field,sname))
-                    arcpy.SelectLayerByLocation_management(eo_reps, "WITHIN_A_DISTANCE", data_lyr, distance, "SUBSET_SELECTION")
+                    arcpy.SelectLayerByLocation_management(eo_reps, "WITHIN_A_DISTANCE", data_lyr, distance-1, "SUBSET_SELECTION")
                     #check for selection on eo_reps layer - if there is a selection, get eoid, select all observations within the separation distance, and assign existing eoid to selected features
                     selection_num = arcpy.Describe(eo_reps).fidset
                     if selection_num is not u'':
@@ -312,7 +312,7 @@ class TerrestrialGrouping(object):
                         countAfter = 1
                         while(countBefore!=countAfter):
                             countBefore = int(arcpy.GetCount_management("data_lyr").getOutput(0))
-                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance, "ADD_TO_SELECTION")
+                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance-2, "ADD_TO_SELECTION")
                             arcpy.SelectLayerByAttribute_management(data_lyr, "SUBSET_SELECTION", species_query.format(species_code,sname))
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_ID") as cursor:
@@ -327,7 +327,7 @@ class TerrestrialGrouping(object):
                         countAfter = 1
                         while(countBefore!=countAfter):
                             countBefore = int(arcpy.GetCount_management("data_lyr").getOutput(0))
-                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance, "ADD_TO_SELECTION")
+                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance-2, "ADD_TO_SELECTION")
                             arcpy.SelectLayerByAttribute_management(data_lyr, "SUBSET_SELECTION", species_query.format(species_code,sname))
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_NEW") as cursor:

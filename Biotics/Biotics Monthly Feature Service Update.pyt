@@ -79,7 +79,6 @@ class BioticsUpdate(object):
         eo_sourcept = r'eo_sourcept'
         eo_sourceln = r'eo_sourceln'
         eo_sourcepy = r'eo_sourcepy'
-        et_changes_fs = r'ET_changes'
 
         fs_ptreps = os.path.join(str(pnhp_db),biotics_db_path+eo_ptreps)
         fs_reps = os.path.join(str(pnhp_db),biotics_db_path+eo_reps)

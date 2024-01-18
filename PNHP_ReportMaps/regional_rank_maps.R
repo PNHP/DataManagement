@@ -58,11 +58,11 @@ for (i in 1:length(snames$UID)) {
   constatus_CA <- as.data.frame(res$elementNationals$elementSubnationals[match("CA", res$elementNationals$nation$isoCode)])
   constatus_CA <- jsonlite::flatten(constatus_CA) # gets rid of the nested data frame
   # this handles species for which there are no conservatoin statuses...
-  if(dim(constatus_CA)==c(0,0)&dim(constatus_US)==c(0,0)){
+  if(all(constatus_CA==0)&all(constatus_US==0)){
     cat("There is no conservation statuses for this species, skipping...\n")
   } else {
     # combine the US and CA data. 
-    constatus <- rbind(constatus_US, constatus_CA)
+    constatus <- bind_rows(constatus_US, constatus_CA)
     rm(constatus_US, constatus_CA) # clean up
     # select the lower of a seasonal rank
     

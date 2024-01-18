@@ -24,19 +24,19 @@ import csv
 
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
-env.workspace = r'in_memory'
+env.workspace = r'memory'
 
 ################################################################################
 # Define global variables and functions to be used throughout toolbox
 ################################################################################
 
 # define paths
-elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2023_Working_pgh-gis0.sde"
-counties = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\StateLayers_Default_pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
-et = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.ET"
+elementGDB = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis0.sde"
+counties = r'C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\StateLayers_Default_pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
+et = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\PNHP_Working_pgh-gis0.sde\PNHP.DBO.ET"
 
 # define input and output features
-input_features = ["FIND2023.DBO.el_pt", "FIND2023.DBO.el_line", "FIND2023.DBO.comm_poly", "FIND2023.DBO.comm_pt", "FIND2023.DBO.el_poly", "FIND2023.DBO.survey_poly"]
+input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line", "FIND2024.DBO.comm_poly", "FIND2024.DBO.comm_pt", "FIND2024.DBO.el_poly", "FIND2024.DBO.survey_poly"]
 elementShapefiles = ["element_point", "element_line", "community_poly", "community_point", "element_poly", "survey_site"]
 elementTables = ["element_point1", "element_line1", "community_poly1", "community_point1", "element_poly1", "survey_site1"]
 
@@ -49,22 +49,22 @@ for i, shape_output, table_output in zip(input_features, elementShapefiles, elem
     element_features = os.path.join(env.workspace, shape_output)
 
     # create fieldmap
-    fieldmappings = arcpy.FieldMappings()
-    fieldmappings.addTable(target_features)
-    fieldmappings.addTable(counties)
-
-    # fields to be kept after spatial join
-    keepFields = ["COUNTY_NAM", "refcode", "created_user", "created_date", "dm_stat", "dm_stat_comm", "last_up_by",
-    "last_up_on", "element_type", "elem_name", "id_prob", "id_prob_comm", "specimen_taken", "specimen_count",
-    "specimen_desc", "curatorial_meth", "specimen_repo", "voucher_photo", "elem_found", "archive", "X", "Y"]
-
-    # remove all fields not in keep fields from field map
-    for field in fieldmappings.fields:
-       if field.name not in keepFields:
-           fieldmappings.removeFieldMap(fieldmappings.findFieldMapIndex(field.name))
+    # fieldmappings = arcpy.FieldMappings()
+    # fieldmappings.addTable(target_features)
+    # fieldmappings.addTable(counties)
+    #
+    # # fields to be kept after spatial join
+    # keepFields = ["COUNTY_NAM", "refcode", "created_user", "created_date", "dm_stat", "dm_stat_comm", "last_up_by",
+    # "last_up_on", "element_type", "elem_name", "id_prob", "id_prob_comm", "specimen_taken", "specimen_count",
+    # "specimen_desc", "curatorial_meth", "specimen_repo", "voucher_photo", "elem_found", "archive", "X", "Y"]
+    #
+    # # remove all fields not in keep fields from field map
+    # for field in fieldmappings.fields:
+    #    if field.name not in keepFields:
+    #        fieldmappings.removeFieldMap(fieldmappings.findFieldMapIndex(field.name))
 
     # run the spatial join tool
-    spatial_join = arcpy.SpatialJoin_analysis(target_features, counties, element_features,field_mapping=fieldmappings)
+    spatial_join = arcpy.SpatialJoin_analysis(target_features, counties, element_features)
 
     arcpy.AddField_management(spatial_join,"element_type","TEXT",field_length = 15,field_alias = "Element Type")
 
@@ -73,9 +73,14 @@ for i, shape_output, table_output in zip(input_features, elementShapefiles, elem
             row[0] = shape_output
             cursor.updateRow(row)
 
-    arcpy.TableToTable_conversion(shape_output, env.workspace, table_output)
+    arcpy.TableToTable_conversion(shape_output, "memory", table_output)
 
-elementRecords = arcpy.Merge_management(elementTables, os.path.join(env.workspace, "elementRecords"))
+elementRecords = arcpy.Merge_management(elementTables, os.path.join("memory", "elementRecords"))
+
+with arcpy.da.UpdateCursor(elementRecords,["element_type","survey_status"]) as cursor:
+    for row in cursor:
+        if row[0] == "survey_site" and row[1] != "comp":
+            cursor.deleteRow()
 
 elementRecords = arcpy.AddField_management(elementRecords,"ELCODE","TEXT","","",15)
 elementRecords = arcpy.AddField_management(elementRecords, "Location", "TEXT", "", "", 1)
@@ -102,8 +107,8 @@ with arcpy.da.UpdateCursor(elementRecords,["elem_name","ELCODE"]) as cursor:
     for row in cursor:
         for k,v in et_dict.items():
             if str(k) == str(row[0]):
-                row[1]=v[0]
-                row[0]=v[1]
+                row[1] = v[0]
+                row[0] = v[1]
                 cursor.updateRow(row)
 
 ################################################################################
@@ -169,15 +174,15 @@ for reviewer in reviewers:
     else:
         id_dict = {}
         with arcpy.da.SearchCursor(id_table,["refcode","element_type","elem_name","ELCODE","elem_found","id_prob_comm","specimen_taken","specimen_count","specimen_desc","curatorial_meth", "specimen_repo","voucher_photo",
-        "dm_stat","dm_stat_comm","created_user","created_date","COUNTY_NAM","X","Y"],"Reviewer = '{}'".format(reviewer)) as cursor:
+        "dm_stat","dm_stat_comm","created_user","created_date","project","COUNTY_NAM","X","Y"],"Reviewer = '{}'".format(reviewer)) as cursor:
             for row in cursor:
-                id_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16],row[17],row[18]]
+                id_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16],row[17],row[18],row[19]]
 
         # write to .csv file
-        with open(os.path.join(ReportsPath,'ID Reviewers Status Reports',reviewer+' ID Reviewers Status Report ' + time.strftime("%d%b%Y")+'.csv'), 'wb') as csvfile:
+        with open(os.path.join(ReportsPath,'ID Reviewers Status Reports',reviewer+' ID Reviewers Status Report ' + time.strftime("%d%b%Y")+'.csv'), 'w', newline='') as csvfile:
             csv_output = csv.writer(csvfile)
             csv_output.writerow(['Reference Code','Feature Type','Scientific Name','ELCODE','Element found?','Any problems with ID?','Specimen taken?','Specimen Count','Specimen Description','Curatorial Method','Specimen Repository','Voucher Photo',
-            'DM Status','DM Status Comments','Created User','Created Date','County','X','Y'])
+            'DM Status','DM Status Comments','Created User','Created Date','Project','County','X','Y'])
             for key in sorted(id_dict.keys()):
                 csv_output.writerow([key] + id_dict[key])
 
@@ -241,10 +246,10 @@ with arcpy.da.UpdateCursor(pivot, "created_user", "refcode IS NOT NULL") as curs
             cursor.updateRow(row)
 
 # add field for survey status
-pivot = arcpy.AddField_management(pivot,"survey_status","TEXT","","",15)
+pivot = arcpy.AddField_management(pivot,"survey_status_overall","TEXT","","",15)
 
 # calculate survey status
-with arcpy.da.UpdateCursor(pivot,["Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","survey_status"]) as cursor:
+with arcpy.da.UpdateCursor(pivot,["Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","survey_status_overall"]) as cursor:
     for row in cursor:
         if row[1] != 0:
             row[9] = 'Pending'
@@ -263,38 +268,40 @@ with arcpy.da.UpdateCursor(pivot,["Archived","dmpend","dmproc","dmready","dr","i
             cursor.updateRow(row)
 
 # delete surveys that are totally processed
-with arcpy.da.UpdateCursor(pivot,"survey_status") as cursor:
+with arcpy.da.UpdateCursor(pivot,"survey_status_overall") as cursor:
     for row in cursor:
         if row[0] == 'Processed':
             cursor.deleteRow()
 
 # create dictionary to hold all attributes
 summary_dict = {}
-with arcpy.da.SearchCursor(pivot,["refcode","survey_status","Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","dm_stat_comm","elem_found","created_user","created_date","COUNTY_NAM","Location"]) as cursor:
+with arcpy.da.SearchCursor(pivot,["refcode","survey_status_overall","Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","dm_stat_comm","elem_found","created_user","created_date","COUNTY_NAM","Location"]) as cursor:
     for row in cursor:
         summary_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16]]
 
 # write to .csv file
-with open(os.path.join(ReportsPath,'DM Status Reports','DM_Total_'+time.strftime("%d%b%Y")+'.csv'), 'wb') as csvfile:
+with open(os.path.join(ReportsPath,'DM Status Reports','DM_Total_'+time.strftime("%d%b%Y")+'.csv'), 'w', newline='') as csvfile:
     csv_output = csv.writer(csvfile)
     # write heading rows to .csv
-    csv_output.writerow(['Reference Code','Survey Status','Archived','DM Pending','DM Processed','DM Ready','Draft','ID Problems','ID Review','Total Records','Survey Site DM Status','Survey Site DM Status Comments','Elements Found?','Created User','Created Date','County','Location'])
+    csv_output.writerow(['Reference Code','Overall Survey Status','Archived','DM Pending','DM Processed','DM Ready','Draft','ID Problems','ID Review','Total Records','Survey Site DM Status','Survey Site DM Status Comments','Elements Found?','Created User','Created Date','County','Location'])
     # write dictionary rows to .csv
-    for key in sorted(summary_dict.keys()):
-        csv_output.writerow([key] + summary_dict[key])
+    # for key in sorted(summary_dict.keys()):
+    #     csv_output.writerow([key] + summary_dict[key])
+    for key, value in summary_dict.items():
+        csv_output.writerow([key, *value])
 
 # create dictionary of all surveys that are ready for DM
 ready_dict = {}
-with arcpy.da.SearchCursor(pivot,["refcode","survey_status","Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","dm_stat_comm","elem_found","created_user","created_date","COUNTY_NAM","Location"],"survey_status = 'Ready'") as cursor:
+with arcpy.da.SearchCursor(pivot,["refcode","survey_status_overall","Archived","dmpend","dmproc","dmready","dr","idprob","idrev","total_records","dm_stat","dm_stat_comm","elem_found","created_user","created_date","COUNTY_NAM","Location"],"survey_status_overall = 'Ready'") as cursor:
     for row in cursor:
         ready_dict[row[0]] = [row[1],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14],row[15],row[16]]
 
 # write to .csv file
-with open(os.path.join(ReportsPath,'DM Status Reports','DM_Ready_'+time.strftime("%d%b%Y")+'.csv'), 'wb') as csvfile:
+with open(os.path.join(ReportsPath,'DM Status Reports','DM_Ready_'+time.strftime("%d%b%Y")+'.csv'), 'w', newline='') as csvfile:
     csv_output = csv.writer(csvfile)
     csv_output.writerow(['Reference Code','Survey Status','Archived','DM Pending','DM Processed','DM Ready','Draft','ID Problems','ID Review','Total Records','Survey Site DM Status','Survey Site DM Status Comments','Elements Found?','Created User','Created Date','County','Location'])
-    for key in sorted(ready_dict.keys()):
-        csv_output.writerow([key] + ready_dict[key])
+    for key, value in ready_dict.items():
+        csv_output.writerow([key, *value])
 
 print("DM Status Reports Created!")
 
@@ -310,16 +317,16 @@ for user in user_last:
     user_dict = {}
     refcode_init = user.upper()[0:3]
     refcode_inits.append(refcode_init)
-    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(refcode LIKE '%{}%') OR (created_user LIKE '%{}%')".format(refcode_init,user)) as cursor:
+    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status_overall", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(refcode LIKE '%{}%') OR (created_user LIKE '%{}%')".format(refcode_init,user)) as cursor:
         for row in cursor:
             user_dict[row[0]] = [row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16]]
 
     # write to .csv file
-    with open(os.path.join(ReportsPath, 'Biologist Status Reports', user + "_UnprocessedSurveyStatus_" + time.strftime("%d%b%Y") + '.csv'),'wb') as csvfile:
+    with open(os.path.join(ReportsPath, 'Biologist Status Reports', user + "_UnprocessedSurveyStatus_" + time.strftime("%d%b%Y") + '.csv'),'w', newline='') as csvfile:
         csv_output = csv.writer(csvfile)
         csv_output.writerow(['Reference Code', 'Survey Status', 'Archived', 'DM Pending', 'DM Processed', 'DM Ready', 'Draft','ID Problems', 'ID Review', 'Total Records', 'Survey Site DM Status', 'Survey Site DM Status Comments', 'Elements Found?', 'Created User', 'Created Date', 'County', 'Location'])
-        for key in sorted(user_dict.keys()):
-            csv_output.writerow([key] + user_dict[key])
+        for key, value in user_dict.items():
+            csv_output.writerow([key, *value])
 
 with arcpy.da.SearchCursor(pivot,["created_user"]) as cursor:
     find_users = sorted({row[0].lower() for row in cursor if row[0] is not None})
@@ -343,20 +350,20 @@ for l in find_refs:
 
 other_dict = {}
 for code in other_refs:
-    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(refcode LIKE '%{}%')".format(code)) as cursor:
+    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status_overall", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(refcode LIKE '%{}%')".format(code)) as cursor:
         for row in cursor:
             other_dict[row[0]] = [row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16]]
 for code in other_users:
-    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(created_user LIKE '%{}%')".format(code)) as cursor:
+    with arcpy.da.SearchCursor(pivot,["refcode", "survey_status_overall", "Archived", "dmpend", "dmproc", "dmready", "dr", "idprob","idrev", "total_records", "dm_stat", "dm_stat_comm", "elem_found", "created_user","created_date", "COUNTY_NAM", "Location"],"(created_user LIKE '%{}%')".format(code)) as cursor:
         for row in cursor:
             other_dict[row[0]] = [row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16]]
 
 # write to .csv file
-with open(os.path.join(ReportsPath, 'Biologist Status Reports', "_User_UnprocessedSurveyStatus_" + time.strftime("%d%b%Y") + '.csv'),'wb') as csvfile:
+with open(os.path.join(ReportsPath, 'Biologist Status Reports', "_User_UnprocessedSurveyStatus_" + time.strftime("%d%b%Y") + '.csv'),'w', newline='') as csvfile:
     csv_output = csv.writer(csvfile)
     csv_output.writerow(['Reference Code', 'Survey Status', 'Archived', 'DM Pending', 'DM Processed', 'DM Ready', 'Draft','ID Problems', 'ID Review', 'Total Records', 'Survey Site DM Status', 'Survey Site DM Status Comments', 'Elements Found?', 'Created User', 'Created Date', 'County', 'Location'])
-    for key in sorted(other_dict.keys()):
-        csv_output.writerow([key] + other_dict[key])
+    for key, value in other_dict.items():
+        csv_output.writerow([key, *value])
 
 for ref,name in zip(refcode_inits,user_last):
     incomplete_dict = {}
@@ -368,7 +375,7 @@ for ref,name in zip(refcode_inits,user_last):
             key_id += 1
 
     # write to .csv file
-    with open(os.path.join(ReportsPath, 'Biologist Status Reports', name + "_IncompleteRecords_" + time.strftime("%d%b%Y") + '.csv'),'wb') as csvfile:
+    with open(os.path.join(ReportsPath, 'Biologist Status Reports', name + "_IncompleteRecords_" + time.strftime("%d%b%Y") + '.csv'),'w', newline='') as csvfile:
         csv_output = csv.writer(csvfile)
         csv_output.writerow(['Reference Code','Feature Type','Scientific Name','ELCODE','Element found?','Any problems with ID?','Specimen taken?','Specimen Count','Specimen Description','Curatorial Method','Specimen Repository','Voucher Photo',
             'DM Status','DM Status Comments','Created User','Created Date','County','X','Y'])

@@ -39,18 +39,18 @@ else:
     print("You have not entered a valid response.")
 
 # define env.workspace - this space is used for all temporary files
-env.workspace = r'in_memory'
+env.workspace = r'memory'
 
 # file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND2023.DBO.el_pt", "FIND2023.DBO.el_line","FIND2023.DBO.el_poly", "FIND2023.DBO.comm_poly",
-"FIND2023.DBO.comm_pt",  "FIND2023.DBO.survey_poly"]
+input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line","FIND2024.DBO.el_poly", "FIND2024.DBO.comm_poly",
+"FIND2024.DBO.comm_pt",  "FIND2024.DBO.survey_poly"]
 
 # file names that are used for temporary element tables
 elementTables = ["element_point", "element_line", "element_poly", "community_poly",
 "community_point", "survey_poly"]
 
 # path to FIND enterprise database
-elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND2023_Working_pgh-gis0.sde"
+elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND_Working_gis0.sde"
 
 reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports\DCNR Quarterly FIND Reports'
 
@@ -146,7 +146,7 @@ def elementType():
             cursor.updateRow(row)
 
     # export table as Excel file to produce final report
-    filename = "FIND Quarterly Report " + time.strftime("%d%b%y")+".xls"
+    filename = "FIND Quarterly Report " + str(year) + quarter + ".xls"
     outTable = os.path.join(reportPath, filename)
     arcpy.TableToExcel_conversion(pivotTable, outTable)
     print("DCNR FIND Quarterly Report Created!")
