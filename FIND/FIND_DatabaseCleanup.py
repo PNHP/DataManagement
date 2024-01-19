@@ -8,48 +8,54 @@
 #              3. removes default time from 'start_date' and 'end_date' fields
 #              4. adds 12:00:00 PM to 'start_date' and 'end_date' fields
 #              5. changes any null values in 'dm_stat' field to 'draft'
-#              6. fills relative GlobalID field with GUID from parent if reference codes match
+#              6. fills relative GlobalID field with GUID from parent if reference codes match and rel_GlobalID is null
+#              7. loads records from ListMaster Survey123 if they are not duplicates and do not have a null reference code and/or null elem_name
 # Author:      Molly Moore
 # Created:     2017-02-13
 # Updated:
 # 1/26/2023 - updated to fill relative GlobalID field if reference codes match.
+# 1/12/2024 - updated to include load from ListMaster Survey123 form
 #
 # To Do List/Future ideas:
 #
 # -------------------------------------------------------------------------------
 
 # import system modules
+import os
+import pandas as pd
+from arcgis.gis import GIS
 import arcpy
+import numpy as np
 
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-workspace = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND2023_Working_pgh-gis0.sde"
-el_pt = r'{}\FIND2023.DBO.el_pt'.format(workspace)
-el_line = r'{}\FIND2023.DBO.el_line'.format(workspace)
-comm_poly = r'{}\FIND2023.DBO.comm_poly'.format(workspace)
-comm_pt = r'{}\FIND2023.DBO.comm_pt'.format(workspace)
-el_poly = r'{}\FIND2023.DBO.el_poly'.format(workspace)
-survey_poly = r'{}\FIND2023.DBO.survey_poly'.format(workspace)
-contacts = r'{}\FIND2023.DBO.contacts'.format(workspace)
-species = r'{}\FIND2023.DBO.SpeciesList'.format(workspace)
+workspace = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis0.sde"
+el_pt = r'{}\FIND2024.DBO.el_pt'.format(workspace)
+el_line = r'{}\FIND2024.DBO.el_line'.format(workspace)
+comm_poly = r'{}\FIND2024.DBO.comm_poly'.format(workspace)
+comm_pt = r'{}\FIND2024.DBO.comm_pt'.format(workspace)
+el_poly = r'{}\FIND2024.DBO.el_poly'.format(workspace)
+survey_poly = r'{}\FIND2024.DBO.survey_poly'.format(workspace)
+contacts = r'{}\FIND2024.DBO.contacts'.format(workspace)
+species = r'{}\FIND2024.DBO.SpeciesList'.format(workspace)
 
 input_features = [el_pt, el_line, comm_poly, comm_pt, el_poly, survey_poly]
 edit = arcpy.da.Editor(workspace)
-edit.startEditing(True, True)
+edit.startEditing(False, True)
 edit.startOperation()
 
-# fill back up reference code if null and fill refcode if null
-with arcpy.da.UpdateCursor(species, ["refcode", "refcode_backup"]) as cursor:
-    for row in cursor:
-        # copy refcode to backup refcode field if needed
-        if row[0] is not None and row[1] is None:
-            row[1] = row[0]
-            cursor.updateRow(row)
-        # copy backup refcode to refcode if needed
-        if row[0] is None and row[1] is not None:
-            row[0] = row[1]
-            cursor.updateRow(row)
+# fill back up reference code if null and fill refcode if null - DON'T NEED TO DO THIS ANYMORE BECAUSE RELATIONSHIP IS BUILD ON GLOBALID AND REFCODE WON'T GO NULL IF DELETED SURVEY SITE
+# with arcpy.da.UpdateCursor(species, ["refcode", "refcode_backup"]) as cursor:
+#     for row in cursor:
+#         # copy refcode to backup refcode field if needed
+#         if row[0] is not None and row[1] is None:
+#             row[1] = row[0]
+#             cursor.updateRow(row)
+#         # copy backup refcode to refcode if needed
+#         if row[0] is None and row[1] is not None:
+#             row[0] = row[1]
+#             cursor.updateRow(row)
 
 # for all element and community FCs and survey site fc, update dm stat to draft where needed and strip white space
 # from reference code
@@ -70,9 +76,28 @@ for feature in input_features:
                     row[1] = update
                     cursor.updateRow(row)
 
-# set time to 12:00:00 if not set correctly so weird time change issues don't mess with the date.
+# set time to 12:00:00 if not set correctly so weird time change issues don't mess with the date. THIS IS FOR ELEMENT FEATURES
+date_updates = ['date_start', 'date_stop']
 for feature in input_features[0:5]:
-    with arcpy.da.UpdateCursor(feature, ['date_start', 'date_stop']) as cursor:
+    for dat in date_updates:
+        with arcpy.da.UpdateCursor(feature, dat) as cursor:
+            for row in cursor:
+                if row[0] is None:
+                    pass
+                elif '12:00:00' in str(row[0]):
+                    pass
+                else:
+                    value = str(row[0])
+                    update = value.split(' ', 2)[0]
+                    update = update + ' 12:00:00 PM'
+                    row[0] = update
+                    cursor.updateRow(row)
+
+
+# set time to 12:00:00 if not set correctly so weird time change issues don't mess with the date. THIS IS FOR SURVEY SITES
+date_updates = ['planned_start_date', 'planned_end_date', 'survey_start', 'survey_end']
+for dat in date_updates:
+    with arcpy.da.UpdateCursor(survey_poly, dat) as cursor:
         for row in cursor:
             if row[0] is None:
                 pass
@@ -85,41 +110,74 @@ for feature in input_features[0:5]:
                 row[0] = update
                 cursor.updateRow(row)
 
-            if row[1] is None:
-                pass
-            elif '12:00:00' in str(row[1]):
-                pass
-            else:
-                value = str(row[1])
-                update = value.split(' ', 2)[0]
-                update = update + ' 12:00:00 PM'
-                row[1] = update
-                cursor.updateRow(row)
 
-# set time to 12:00:00 if not set correctly so weird time change issues don't mess with the date.
-with arcpy.da.UpdateCursor(survey_poly, ['survey_start', 'survey_end']) as cursor:
+##################################################################################
+## Below is for loading ListMaster records into the FIND Species List
+##################################################################################
+# define ID number for the ListMaster survey - this can be found @ arcgis.com information page
+survey_id = 'efac50dc6b95479e9329092ae4c454c1'
+
+# define list of fields used in the species list and ListMaster - these should match and be able to be used in retrieving lists from the ListMaster Survey123 form and in inserting them into the FIND Species List
+species_fields = ['refcode','plot_id','elem_name','conf','strata','species_cover','specimen_repo','subsite','comm']
+
+# load gis credentials from OS environment variables
+wpc_gis_username = os.environ.get("wpc_gis_username")
+wpc_gis_password = os.environ.get("wpc_gis_password")
+# connect to my arcgis.com account
+gis = GIS('https://www.arcgis.com', wpc_gis_username, wpc_gis_password)
+
+# get ListMaster Feature Layer Collection using survey ID number found @ arcgis.com information page
+ListMaster = gis.content.get(survey_id)
+
+# define layer and table here - there is only 1 layer and 1 table, so do not need any other comprehension other than to just choose the only one
+lm_survey = ListMaster.layers[0]
+lm_species = ListMaster.tables[0]
+
+# get all surveys in feature layer and convert to Pandas dataframe
+all_surveys = lm_survey.query()
+survey_df = all_surveys.sdf
+
+# get all species list entries and convert to Pandas dataframe
+all_species = lm_species.query()
+species_df = all_species.sdf
+
+# join survey dataframe to species dataframe to get reference code for species list - this is necessary because the relationship is based on globalid and not reference code
+merged_df = pd.merge(species_df, survey_df, left_on='parentglobalid', right_on='globalid')
+merged_df = merged_df.replace({np.nan: None})
+
+# create list of tuples for all records in ListMaster Survey123
+ListMaster_records = [tuple(r) for r in merged_df[species_fields].to_numpy()]
+
+# get all species in FIND species list and put them into a list of tuples
+current_species = []
+with arcpy.da.SearchCursor(species,species_fields) as cursor:
     for row in cursor:
-        if row[0] is None:
-            pass
-        elif '12:00:00' in str(row[0]):
-            pass
-        else:
-            value = str(row[0])
-            update = value.split(' ', 2)[0]
-            update = update + ' 12:00:00 PM'
-            row[0] = update
-            cursor.updateRow(row)
+        current_species.append(row)
 
-        if row[1] is None:
-            pass
-        elif '12:00:00' in str(row[1]):
-            pass
-        else:
-            value = str(row[1])
-            update = value.split(' ', 2)[0]
-            update = update + ' 12:00:00 PM'
-            row[1] = update
-            cursor.updateRow(row)
+# for each record in Survey123 ListMaster, check if it already exists in FIND species list - if it does, skip it. if it doesn't, load it in.
+for record in ListMaster_records:
+    if record in current_species:
+        print("A record of "+record[2]+" from survey with reference code " + record[0] + " is already in the FIND species list.")
+        pass
+    # we also don't want to load records with null reference codes
+    elif record[0] is None:
+        print("A record has a null reference code. It is being skipped")
+        pass
+    # we also don't want to load records with null element names
+    elif record[2] is None:
+        print("A record has a null element name. It is being skipped.")
+        pass
+    else:
+        with arcpy.da.InsertCursor(species,species_fields) as cursor:
+            cursor.insertRow(record)
+
+# Delete identical records in the FIND species list - this is a general management step
+arcpy.management.DeleteIdentical(species, species_fields)
+
+
+################################################################################
+### below is for updating relative GlobalID in foreign tables if matching refcodes
+################################################################################
 
 
 # create function to update relative GlobalID based on matching refcodes
@@ -145,6 +203,7 @@ update_rel_guid(survey_poly, "refcode", comm_pt, "refcode", "rel_GlobalID")
 update_rel_guid(survey_poly, "refcode", comm_poly, "refcode", "rel_GlobalID")
 update_rel_guid(survey_poly, "refcode", species, "refcode", "rel_GlobalID")
 update_rel_guid(survey_poly, "refcode", contacts, "refcode", "surv_rel_GlobalID")
+
 
 edit.stopOperation()
 edit.stopEditing(True)

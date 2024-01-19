@@ -59,3 +59,10 @@ FIND/.idea/.name
 FIND/.idea/FIND.iml
 FIND/__pycache__/FIND_et_2022.cpython-37.pyc
 FIND/archived/__init__.py
+*.xml
+.idea/.name
+*.iml
+*.xml
+*.xml
+*.xml
+FIND/FIND_NeedsAttentionReport.txt
