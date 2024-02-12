@@ -103,7 +103,7 @@ class TerrestrialGrouping(object):
 
         input_fcs = input_fc.split(';')
 
-        data_merge = arcpy.Merge_management(input_fcs,os.path.join(output_gdb,"Occurrence_Groupings_Terrestrial"+date_time))
+        data_merge = arcpy.Merge_management(input_fcs,os.path.join(output_gdb,"Occurrence_Groupings_Terrestrial_"+date_time))
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge, "data_lyr")
 
         #updated to account for double and float field types

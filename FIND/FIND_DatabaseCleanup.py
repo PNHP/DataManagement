@@ -180,19 +180,18 @@ arcpy.management.DeleteIdentical(species, species_fields)
 ################################################################################
 
 
-# create function to update relative GlobalID based on matching refcodes
+# create function to update related GlobalID based on matching refcodes
 def update_rel_guid(parent_feature, primary_key, child_feature, foreign_key, related_guid):
     related_dict = {row[0]: row[1] for row in arcpy.da.SearchCursor(parent_feature, [primary_key, "GlobalID"]) if
                     row[0] is not None}
     with arcpy.da.UpdateCursor(child_feature, [foreign_key, related_guid]) as cursor:
         for row in cursor:
-            if row[1] is None:
-                for k, v in related_dict.items():
-                    if k == row[0]:
-                        row[1] = v
-                        cursor.updateRow(row)
-                    else:
-                        pass
+            for k, v in related_dict.items():
+                if k == row[0]:
+                    row[1] = v
+                    cursor.updateRow(row)
+                else:
+                    pass
 
 
 # update relative GlobalIDs in child tables

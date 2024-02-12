@@ -33,7 +33,7 @@ class Toolbox(object):
     def __init__(self):
         self.label = "FIND Data Entry and Reporting Toolbox"
         self.alias = "FIND Data Entry and Reporting Toolbox"
-        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ParcelContactCreator,NeedsAttention,SpeciesLocator,GeometryTransferTool]
+        self.tools = [NegativeDataEntryTool,PermissionDeniedTool,ListLoader,NeedsAttention,SpeciesLocator,ParcelContactCreator,SurveySiteReport]
 
 ######################################################################################################################################################
 ## Begin negative data entry tool
@@ -47,6 +47,13 @@ class NegativeDataEntryTool(object):
         self.category = "Data Entry Tools"
 
     def getParameterInfo(self):
+        arcmap = arcpy.Parameter(
+            displayName = "Check box if you are using ArcMap 10.xx instead of ArcGIS Pro.",
+            name = "arcmap",
+            datatype = "GPBoolean",
+            parameterType = "optional",
+            direction = "Input")
+
         survey_site = arcpy.Parameter(
             displayName = "Selected Survey Site Layer",
             name = "survey_site",
@@ -91,7 +98,7 @@ class NegativeDataEntryTool(object):
             parameterType = "Optional",
             direction = "Input")
 
-        params = [survey_site,ref_code,element_type,element_name,existing_eo,not_found_comm]
+        params = [arcmap,survey_site,ref_code,element_type,element_name,existing_eo,not_found_comm]
         return params
 
     def isLicensed(self):
@@ -99,18 +106,23 @@ class NegativeDataEntryTool(object):
 
     def updateParameters(self, params):
         # update choices for element name based on element type - uses the ET dictionaries
-        if params[2].value == "Insect":
-            params[3].filter.list = sorted(list(et_insect.values()))
-        elif params[2].value == "Lepidoptera":
-            params[3].filter.list = sorted(list(et_lep.values()))
-        elif params[2].value == "Other Invertebrate":
-            params[3].filter.list = sorted(list(et_invert.values()))
-        elif params[2].value == "Plant":
-            params[3].filter.list = sorted(list(et_plant.values()))
-        elif params[2].value == "Vertebrate Animal":
-            params[3].filter.list = sorted(list(et_vert.values()))
-        elif params[2].value == "Community":
-            params[3].filter.list = sorted(list(et_comm.values()))
+        if params[3].value == "Insect":
+            params[4].filter.list = sorted(list(et_insect.values()))
+        elif params[3].value == "Lepidoptera":
+            params[4].filter.list = sorted(list(et_lep.values()))
+        elif params[3].value == "Other Invertebrate":
+            params[4].filter.list = sorted(list(et_invert.values()))
+        elif params[3].value == "Plant":
+            params[4].filter.list = sorted(list(et_plant.values()))
+        elif params[3].value == "Vertebrate Animal":
+            params[4].filter.list = sorted(list(et_vert.values()))
+        elif params[3].value == "Community":
+            params[4].filter.list = sorted(list(et_comm.values()))
+
+        if params[0].value == True:
+            params[1].value = 'PNHP\FIND\Survey Site'
+        else:
+            params[1].value = 'FIND\Survey Site'
 
         return
 
@@ -119,15 +131,20 @@ class NegativeDataEntryTool(object):
 
     def execute(self, params, messages):
         # define parameters
-        survey_site = params[0].valueAsText
-        ref_code = params[1].valueAsText
-        element_type = params[2].valueAsText
-        element_name = params[3].valueAsText
-        existing_eo = params[4].valueAsText
-        not_found_comm = params[5].valueAsText
+        survey_site = params[1].valueAsText
+        ref_code = params[2].valueAsText
+        element_type = params[3].valueAsText
+        element_name = params[4].valueAsText
+        existing_eo = params[5].valueAsText
+        not_found_comm = params[6].valueAsText
 
-        # define element polygon layer and species list
-        elem_poly = r"FIND\Element Polygon"
+        # define element polygon layer and species list based on whether using ArcMap or ArcPro
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            elem_poly = r"FIND\Element Polygon"
+        else:
+            elem_poly = r"PNHP\FIND\Element Polygon"
+
         species_table = r"FIND\Species List"
 
         # check that only one survey site is selected - error out if not
@@ -142,13 +159,12 @@ class NegativeDataEntryTool(object):
             pass
 
         # get attributes from selected survey site to use later
-        with arcpy.da.SearchCursor(survey_site,["refcode","survey_start","survey_end","SHAPE@","GlobalID"]) as cursor:
+        with arcpy.da.SearchCursor(survey_site,["refcode","survey_start","survey_end","SHAPE@"]) as cursor:
             for row in cursor:
                 refcode = row[0]
                 start = row[1]
                 stop = row[2]
                 geom = row[3]
-                guid = row[4]
 
         # check that user input reference code matches reference code of selected survey site
         if ref_code != refcode:
@@ -212,14 +228,14 @@ class NegativeDataEntryTool(object):
         sp_feat_comm = "Feature copied from survey site using negative data entry tool."
 
         # insert new negative record into element polygon layer that matches shape of selected survey site
-        values = [refcode,elem_type,elem_name,elem_found,elem_found_comm,eoid,start,stop,sp_feat_meth,sp_feat_comm,dm_stat,geom,guid]
-        fields = ["refcode","elem_type","elem_name","elem_found","elem_found_comm","eoid","date_start","date_stop","feat_meth","feat_meth_comm","dm_stat","SHAPE@","rel_GlobalID"]
+        values = [refcode,elem_type,elem_name,elem_found,elem_found_comm,eoid,start,stop,sp_feat_meth,sp_feat_comm,dm_stat,geom]
+        fields = ["refcode","elem_type","elem_name","elem_found","elem_found_comm","eoid","date_start","date_stop","feat_meth","feat_meth_comm","dm_stat","SHAPE@"]
         with arcpy.da.InsertCursor(elem_poly,fields) as cursor:
             cursor.insertRow(values)
 
         # insert new negative record into species list
-        values = [elem_name,elem_found,refcode,element_name,guid]
-        fields = ["elem_name","elem_found","refcode","elem_name_archive","rel_GlobalID"]
+        values = [elem_name,elem_found,refcode,element_name]
+        fields = ["elem_name","elem_found","refcode","elem_name_archive"]
         with arcpy.da.InsertCursor(species_table,fields) as cursor:
             cursor.insertRow(values)
 
@@ -241,12 +257,12 @@ class PermissionDeniedTool(object):
 
     def getParameterInfo(self):
         potential_site = arcpy.Parameter(
-            displayName = "Selected Survey Site Layer",
+            displayName = "Selected Potential Survey Site Layer",
             name = "potential_site",
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
-        potential_site.value = "FIND\Survey Site"
+        potential_site.value = "FIND\Potential Survey Site"
 
         refcode = arcpy.Parameter(
             displayName = "Reference Code for Selected Survey Site (should start with P for personal reference)",
@@ -260,7 +276,8 @@ class PermissionDeniedTool(object):
             name = "parcel_id",
             datatype = "GPString",
             parameterType= "Optional",
-            direction = "Input")
+            direction = "Input"
+        )
 
         target_elements = arcpy.Parameter(
             displayName = "Target Element(s) Name",
@@ -434,6 +451,11 @@ class PermissionDeniedTool(object):
         return True
 
     def updateParameters(self, params):
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            params[0].value = 'FIND\Potential Survey Site'
+        else:
+            params[0].value = 'PNHP\FIND\Potential Survey Site'
         return
 
     def updateMessages(self, params):
@@ -468,7 +490,12 @@ class PermissionDeniedTool(object):
         followup_comm = params[24].valueAsText
 
         # define element polygon layer and species list based on whether using ArcMap or ArcPro
-        elem_poly = r"FIND\Element Polygon"
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            elem_poly = r"FIND\Element Polygon"
+        else:
+            elem_poly = r"PNHP\FIND\Element Polygon"
+
         nf_target = r"FIND\Needs Found Table"
         contacts = r'FIND\Contacts'
 
@@ -489,6 +516,13 @@ class PermissionDeniedTool(object):
                 site_name = row[0]
                 geom = row[1]
                 GlobalID = row[2]
+
+        # check that user input reference code matches reference code of selected survey site
+        if site_name is None:
+            arcpy.AddError("The site name for your selected potential survey site is null. Please make sure you have entered a site name for your proposed survey site and try again.")
+            sys.exit()
+        else:
+            pass
 
         # insert new contact record
         if interaction == "Telephone":
@@ -534,7 +568,7 @@ class PermissionDeniedTool(object):
             followup = "N"
 
         values = [refcode,site_name,parcel_id,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm,GlobalID]
-        fields = ["refcode","prop_surv_site_n","parcelID","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm","surv_rel_GlobalID"]
+        fields = ["refcode","prop_surv_site_n","parcelID","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm","pot_rel_GlobalID"]
         with arcpy.da.InsertCursor(contacts,fields) as cursor:
             cursor.insertRow(values)
 
@@ -586,14 +620,14 @@ class PermissionDeniedTool(object):
                 sp_feat_comm = "Feature copied from proposed survey site using permission denied data entry tool."
 
                 # insert new negative record into element polygon layer that matches shape of selected survey site
-                values = [refcode,elem_type,elem_name,elem_found,elem_found_comm,eoid,sp_feat_meth,sp_feat_comm,dm_stat,geom,GlobalID]
-                fields = ["refcode","elem_type","elem_name","elem_found","elem_found_comm","eoid","feat_meth","feat_meth_comm","dm_stat","SHAPE@","rel_GlobalID"]
+                values = [refcode,elem_type,elem_name,elem_found,elem_found_comm,eoid,sp_feat_meth,sp_feat_comm,dm_stat,geom]
+                fields = ["refcode","elem_type","elem_name","elem_found","elem_found_comm","eoid","feat_meth","feat_meth_comm","dm_stat","SHAPE@"]
                 with arcpy.da.InsertCursor(elem_poly,fields) as cursor:
                     cursor.insertRow(values)
 
                 # insert new negative record into nf species list
-                values = [site_name,elem_type,elem_name,GlobalID]
-                fields = ["survey_name","elem_type","elem_name","rel_GlobalID"]
+                values = [site_name,elem_type,elem_name]
+                fields = ["survey_name","elem_type","elem_name"]
                 with arcpy.da.InsertCursor(nf_target,fields) as cursor:
                     cursor.insertRow(values)
 
@@ -606,9 +640,262 @@ class PermissionDeniedTool(object):
         else:
             arcpy.AddMessage("No needs found species list record(s) or needs found element polygon(s) were added to the proposed survey "+site_name+" because you didn't list any!")
 
+######################################################################################################################################################
+## Begin ListLoader Tool
+######################################################################################################################################################
+
+class ListLoader(object):
+    def __init__(self):
+        """Define the tool (tool name is the name of the class)."""
+        self.label = "ListLoader for FIND"
+        self.alias = "ListLoader for FIND"
+        self.description = "Seamlessly loads species list data from ListMaster to FIND in ArcGIS Pro or ArcMap."
+        self.canRunInBackground = False
+        self.category = "Data Entry Tools"
+
+    def getParameterInfo(self):
+        return True
+
+    def execute(self, parameters, messages):
+        # define species list Excel file that was exported from ListMaster and the Species List table name
+        sp_list = r'H:\specieslist_find.xls'
+        sp_table = r"FIND\Species List"
+
+        # convert the excel species list into a temporary ArcGIS table
+        table = arcpy.ExcelToTable_conversion(sp_list, os.path.join("in_memory","tabled"), "out_SpeciesList")
+
+        # get list of fields from species list table
+        dsc = arcpy.Describe(table)
+        fields = dsc.fields
+        fieldnames = [field.name for field in fields if field.name != dsc.OIDFieldName]
+
+        arcpy.AddMessage("The following species records were added to the FIND species list: ")
+        # create search cursor for species list records and insert them into FIND species list
+        with arcpy.da.SearchCursor(table,fieldnames) as sCur:
+            with arcpy.da.InsertCursor(sp_table,fieldnames) as iCur:
+                for row in sCur:
+                    arcpy.AddMessage(row)
+                    iCur.insertRow(row)
+        return
 
 ######################################################################################################################################################
-## Begin Parcel and Contact Creator
+## Begin Needs Attention Reporting Tool
+######################################################################################################################################################
+
+class NeedsAttention(object):
+    def __init__(self):
+        self.label = "Needs Attention Report"
+        self.alias = "Needs Attention Report"
+        self.description = "Run this tool to generate a report of your incomplete records and make a selection on those records in the Element and Community Point, Line, Polygon, and Survey Site layers."
+        self.canRunInBackground = False
+        self.category = "QC and Reporting Tools"
+
+    def getParameterInfo(self):
+        last_name = arcpy.Parameter(
+            displayName = "What's your last name?",
+            name = "last_name",
+            datatype = "GPString",
+            parameterType = "Required",
+            direction = "Input")
+
+        params = [last_name]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        last_name = params[0].valueAsText
+        # establish location of .txt file report in same folder as script location
+        txt_file = os.path.join(os.path.dirname(__file__),'FIND_NeedsAttentionReport.txt')
+
+        # define name of parameters based on ArcGIS Pro or ArcMap
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            el_pt = r'FIND\Element Point'
+            el_ln = r'FIND\Element Line'
+            el_py = r'FIND\Element Polygon'
+            cm_pt = r'FIND\Community or Other Point'
+            cm_py = r'FIND\Community or Other Polygon'
+            survey_site = r'FIND\Survey Site'
+        else:
+            el_pt = r'PNHP\FIND\Element Point'
+            el_ln = r'PNHP\FIND\Element Line'
+            el_py = r'PNHP\FIND\Element Polygon'
+            cm_pt = r'PNHP\FIND\Community or Other Point'
+            cm_py = r'PNHP\FIND\Community or Other Polygon'
+            survey_site = r'PNHP\FIND\Survey Site'
+
+        # get reference code initials from last name
+        refcode_init = last_name.upper()[0:3]
+
+        # print header to txt file
+        now = datetime.datetime.now()
+        dt_string = now.strftime("%m/%d/%y %I:%M:%p")
+        with open(txt_file,'w') as f:
+            f.write("################################################################"+"\n")
+            f.write('\n')
+            f.write("Welcome to the FIND Record Report!"+'\n')
+            f.write("Updated: "+dt_string+'\n')
+            f.write("\n")
+            f.write("################################################################"+"\n")
+
+        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
+        labels = ["Survey Site","Element Points","Element Lines","Element Polygons","Community Points","Community Polygons"]
+
+        for l in listo:
+            desc = arcpy.Describe(l)
+            if desc.FIDSet == '':
+                pass
+            else:
+                arcpy.AddWarning("Please clear all of your selections and try again.")
+                sys.exit()
+
+        # loop through layers to check for incomplete records and print results
+        for l,x in zip(listo,labels):
+            arcpy.SelectLayerByAttribute_management(l,"NEW_SELECTION","((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))
+            count = len(list(i for i in arcpy.da.SearchCursor(l, ["*"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))))
+            if count > 0:
+                with open(txt_file,"a") as f:
+                    f.write("\n")
+                    f.write("You have "+str(count)+" incomplete records in the "+x+" layer:" + "\n")
+                    f.write("\n")
+                    f.write("Reference Code, DM Status, Created User, Created Date" + "\n")
+                arcpy.AddWarning("You have "+str(count)+" incomplete records in the "+x+" layer.")
+                with arcpy.da.SearchCursor(l,["refcode","dm_stat","created_user","created_date"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name)) as cursor:
+                    for row in cursor:
+                        with open(txt_file,'a') as f:
+                            f.write(",  ".join(str(i) for i in row))
+                            f.write("\n")
+            else:
+                with open(txt_file,'a') as f:
+                    f.write('\n')
+                    f.write("You do not have any incomplete records in the "+x+" layer. Congratulations!"+"\n")
+                arcpy.AddWarning("You do not have any incomplete records in the "+x+" layer. Congratulations!")
+
+            with open(txt_file,'a') as f:
+                f.write("\n")
+                f.write("################################################################"+"\n")
+
+        os.startfile(txt_file)
+
+######################################################################################################################################################
+## Begin Species Locator Tool
+######################################################################################################################################################
+
+class SpeciesLocator(object):
+    def __init__(self):
+        self.label = "Species Locator Tool"
+        self.alias = "Species Locator Tool"
+        self.description = "Run this tool to select all survey site polygon within which the input species has/have been found."
+        self.canRunInBackground = False
+        self.category = "QC and Reporting Tools"
+
+    def getParameterInfo(self):
+        species = arcpy.Parameter(
+            displayName = "What species would you like to locate?",
+            name = "species",
+            datatype = "GPString",
+            multiValue = False,
+            parameterType = "Required",
+            direction = "Input")
+        species.filter.list = sorted(list(et_all.values()))
+
+        params = [species]
+        return params
+
+    def isLicensed(self):
+        return True
+
+    def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
+        return
+
+    def updateMessages(self, params):
+        return
+
+    def execute(self, params, messages):
+        # define parameters
+        species = params[0].valueAsText
+
+        # define name of parameters based on ArcGIS Pro or ArcMap
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            el_pt = r'FIND\Element Point'
+            el_ln = r'FIND\Element Line'
+            el_py = r'FIND\Element Polygon'
+            cm_pt = r'FIND\Community or Other Point'
+            cm_py = r'FIND\Community or Other Polygon'
+            survey_site = r'FIND\Survey Site'
+            ref_poly = r'FIND\Reference Area Polygon'
+        else:
+            el_pt = r'PNHP\FIND\Element Point'
+            el_ln = r'PNHP\FIND\Element Line'
+            el_py = r'PNHP\FIND\Element Polygon'
+            cm_pt = r'PNHP\FIND\Community or Other Point'
+            cm_py = r'PNHP\FIND\Community or Other Polygon'
+            survey_site = r'PNHP\FIND\Survey Site'
+            ref_poly = r'PNHP\FIND\Reference Area Polygon'
+
+        species_list = r"FIND\Species List"
+        ref_keyword = r"FIND\Reference Keyword Table"
+
+        # create list of features to check for selections
+        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
+
+        # check for selections and error out if there are any selections
+        for l in listo:
+            desc = arcpy.Describe(l)
+            if desc.FIDSet == '':
+                pass
+            else:
+                arcpy.AddWarning("Please clear all of your selections and try again.")
+                sys.exit()
+
+        d = et_all
+        # get element name from dictionary
+        key_list = list(d.keys())
+        val_list = list(d.values())
+        elem_list = key_list[val_list.index(species)]
+
+        # get list of reference codes from species list, element/community points,lines,polys, and reference keyword table is species matches selection
+        spec_presence = sorted({row[0] for row in arcpy.da.SearchCursor(species_list,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        el_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N' and row[2]!='No'})
+        el_ln_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_ln,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        el_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        cm_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        cm_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
+        ref_keyword_presence = sorted({row[0] for row in arcpy.da.SearchCursor(ref_keyword,['refcode','ref_keyword']) if row[0] is not None and row[1].lower() == species.lower()})
+
+        # combine reference code lists
+        refcode_list = spec_presence+el_pt_presence+el_ln_presence+el_py_presence+cm_pt_presence+cm_py_presence+ref_keyword_presence
+
+        # create where clause based on number of reference codes in list
+        if len(refcode_list)==0:
+            arcpy.AddWarning("Your selected species was not found in any survey site :(")
+            sys.exit()
+        elif len(refcode_list)==1:
+            where_clause = "refcode = '{}'".format(''.join(refcode_list))
+        else:
+            where_clause = 'refcode IN {0}'.format(tuple(refcode_list))
+
+        # select survey site polygons and reference area polygons that match reference code in list
+        arcpy.SelectLayerByAttribute_management(survey_site,"NEW_SELECTION",where_clause)
+        arcpy.SelectLayerByAttribute_management(ref_poly,"NEW_SELECTION",where_clause)
+
+        arcpy.AddMessage("The survey sites within which "+ species+ " has been found include: " + ', '.join(refcode_list))
+        arcpy.AddMessage("The survey site(s) and/or reference area polygon(s) where " + species + " was found is(are) now selected.")
+
+######################################################################################################################################################
+## Begin Needs Attention Reporting Tool
 ######################################################################################################################################################
 
 class ParcelContactCreator(object):
@@ -642,7 +929,7 @@ class ParcelContactCreator(object):
             direction = "Input")
 
         prop_name = arcpy.Parameter(
-            displayName = "Survey Site Name",
+            displayName = "Proposed Survey Site Name",
             name = "prop_name",
             datatype = "GPString",
             parameterType = "Optional",
@@ -1028,7 +1315,13 @@ class ParcelContactCreator(object):
             #             zip_code = row[7]
 
         # define name of parameters based on ArcGIS Pro or ArcMap
-        find_parcels = r'FIND\Parcels'
+        arc_prod = arcpy.GetInstallInfo()['ProductName']
+        if arc_prod == 'ArcGISPro':
+            find_parcels = r'FIND\Parcels'
+
+        else:
+            find_parcels = r'PNHP\FIND\Parcels'
+
         contacts = r'FIND\Contacts'
 
         # check that only one parcel is selected - error out if not
@@ -1047,12 +1340,11 @@ class ParcelContactCreator(object):
             for row in cursor:
                 geom = row[0]
         counter = 0
-        with arcpy.da.SearchCursor(find_parcels,['SHAPE@','parcelID','GlobalID']) as cursor:
+        with arcpy.da.SearchCursor(find_parcels,['SHAPE@','parcelID']) as cursor:
             for row in cursor:
                 if row[0] == geom:
                     counter += 1
                     parcel_id = row[1]
-                    guid = row[2]
 
         # if no FIND parcels match geometry, copy parcel into FIND parcel layer and assign new parcel id
         if counter == 0:
@@ -1070,12 +1362,6 @@ class ParcelContactCreator(object):
             fields = ["parcelID","SHAPE@"]
             with arcpy.da.InsertCursor(find_parcels,fields) as cursor:
                 cursor.insertRow(values)
-
-            with arcpy.da.SearchCursor(find_parcels,["parcelID","GlobalID"]) as cursor:
-                for row in cursor:
-                    if row[0] == parcel_id:
-                        guid = row[1]
-
             arcpy.AddMessage("A new parcel was created in the FIND Parcels layer with Parcel ID: " +parcel_id)
         # if FIND parcel already exists, assign existing parcel ID
         elif counter == 1:
@@ -1132,248 +1418,41 @@ class ParcelContactCreator(object):
                 followup = "N"
 
             # insert new contact record
-            values = [parcel_id,refcode,prop_name,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm,guid]
-            fields = ["parcelID","refcode","prop_surv_site_n","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm","par_rel_GlobalID"]
+            values = [parcel_id,refcode,prop_name,first_name,last_name,position,institution,address,city,state,zip_code,mobile,landline,email,interaction,pref_interaction,start_date,end_date,int_comm,permission,permission_comm,access,followup,followup_comm]
+            fields = ["parcelID","refcode","prop_surv_site_n","fname","lname","position","institution","address","city","state","zip","mphone","hphone","email","interaction_type","pref_interaction_type","date_start","date_end","interaction_comm","permission","permission_comm","access_notes","followup","followup_comm"]
             with arcpy.da.InsertCursor(contacts,fields) as cursor:
                 cursor.insertRow(values)
 
             arcpy.AddMessage("A new contact record was created with parcel ID: " + parcel_id + ". Please check this record, make any tabular updates, and save your edits.")
 
-
 ######################################################################################################################################################
-## Begin Needs Attention Reporting Tool
+## Begin Survey Site Report Tool
 ######################################################################################################################################################
 
-class NeedsAttention(object):
+class SurveySiteReport(object):
     def __init__(self):
-        self.label = "Needs Attention Report"
-        self.alias = "Needs Attention Report"
-        self.description = "Run this tool to generate a report of your incomplete records and make a selection on those records in the Element and Community Point, Line, Polygon, and Survey Site layers."
+        self.label = "Survey Site Report - DEVELOPMENT"
+        self.alias = "Survey Site Report - DEVELOPMENT"
+        self.description = "Run this tool to generate text that can be used to paste into a survey site report."
         self.canRunInBackground = False
         self.category = "QC and Reporting Tools"
-
-    def getParameterInfo(self):
-        last_name = arcpy.Parameter(
-            displayName = "What's your last name?",
-            name = "last_name",
-            datatype = "GPString",
-            parameterType = "Required",
-            direction = "Input")
-
-        params = [last_name]
-        return params
-
-    def isLicensed(self):
-        return True
-
-    def updateParameters(self, params):
-        # update choices for element name based on element type - uses the ET dictionaries
-        return
-
-    def updateMessages(self, params):
-        return
-
-    def execute(self, params, messages):
-        # define parameters
-        last_name = params[0].valueAsText
-        # establish location of .txt file report in same folder as script location
-        txt_file = os.path.join(os.path.dirname(__file__),'FIND_NeedsAttentionReport.txt')
-
-        # define name of parameters based on ArcGIS Pro or ArcMap
-        el_pt = r'FIND\Element Point'
-        el_ln = r'FIND\Element Line'
-        el_py = r'FIND\Element Polygon'
-        cm_pt = r'FIND\Community or Other Point'
-        cm_py = r'FIND\Community or Other Polygon'
-        survey_site = r'FIND\Survey Site'
-
-        # get reference code initials from last name
-        refcode_init = last_name.upper()[0:3]
-
-        # print header to txt file
-        now = datetime.datetime.now()
-        dt_string = now.strftime("%m/%d/%y %I:%M:%p")
-        with open(txt_file,'w') as f:
-            f.write("################################################################"+"\n")
-            f.write('\n')
-            f.write("Welcome to the FIND Record Report!"+'\n')
-            f.write("Updated: "+dt_string+'\n')
-            f.write("\n")
-            f.write("################################################################"+"\n")
-
-        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
-        labels = ["Survey Site","Element Points","Element Lines","Element Polygons","Community Points","Community Polygons"]
-
-        for l in listo:
-            desc = arcpy.Describe(l)
-            if desc.FIDSet == '':
-                pass
-            else:
-                arcpy.AddWarning("Please clear all of your selections and try again.")
-                sys.exit()
-
-        # loop through layers to check for incomplete records and print results
-        for l,x in zip(listo,labels):
-            arcpy.SelectLayerByAttribute_management(l,"NEW_SELECTION","((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))
-            if l == survey_site:
-                arcpy.SelectLayerByAttribute_management(l,"REMOVE_FROM_SELECTION","survey_status <> 'comp'")
-            count = len(list(i for i in arcpy.da.SearchCursor(l, ["*"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name))))
-            if count > 0:
-                with open(txt_file,"a") as f:
-                    f.write("\n")
-                    f.write("You have "+str(count)+" incomplete records in the "+x+" layer:" + "\n")
-                    f.write("\n")
-                    f.write("Reference Code, DM Status, Created User, Created Date" + "\n")
-                arcpy.AddWarning("You have "+str(count)+" incomplete records in the "+x+" layer.")
-                with arcpy.da.SearchCursor(l,["refcode","dm_stat","created_user","created_date"],where_clause = "((refcode LIKE '%{}%') OR (created_user LIKE '%{}%')) AND (dm_stat <> 'dmproc' AND dm_stat <> 'dmready')".format(refcode_init, last_name)) as cursor:
-                    for row in cursor:
-                        with open(txt_file,'a') as f:
-                            f.write(",  ".join(str(i) for i in row))
-                            f.write("\n")
-            else:
-                with open(txt_file,'a') as f:
-                    f.write('\n')
-                    f.write("You do not have any incomplete records in the "+x+" layer. Congratulations!"+"\n")
-                arcpy.AddWarning("You do not have any incomplete records in the "+x+" layer. Congratulations!")
-
-            with open(txt_file,'a') as f:
-                f.write("\n")
-                f.write("################################################################"+"\n")
-
-        os.startfile(txt_file)
-
-######################################################################################################################################################
-## Begin Species Locator Tool
-######################################################################################################################################################
-
-class SpeciesLocator(object):
-    def __init__(self):
-        self.label = "Species Locator Tool"
-        self.alias = "Species Locator Tool"
-        self.description = "Run this tool to select all survey site polygon within which the input species has/have been found."
-        self.canRunInBackground = False
-        self.category = "QC and Reporting Tools"
-
-    def getParameterInfo(self):
-        species = arcpy.Parameter(
-            displayName = "What species would you like to locate?",
-            name = "species",
-            datatype = "GPString",
-            multiValue = False,
-            parameterType = "Required",
-            direction = "Input")
-        species.filter.list = sorted(list(et_all.values()))
-
-        params = [species]
-        return params
-
-    def isLicensed(self):
-        return True
-
-    def updateParameters(self, params):
-        # update choices for element name based on element type - uses the ET dictionaries
-        return
-
-    def updateMessages(self, params):
-        return
-
-    def execute(self, params, messages):
-        # define parameters
-        species = params[0].valueAsText
-
-        # define name of parameters based on ArcGIS Pro or ArcMap
-        el_pt = r'FIND\Element Point'
-        el_ln = r'FIND\Element Line'
-        el_py = r'FIND\Element Polygon'
-        cm_pt = r'FIND\Community or Other Point'
-        cm_py = r'FIND\Community or Other Polygon'
-        survey_site = r'FIND\Survey Site'
-        ref_poly = r'FIND\Reference Area Polygon'
-
-        species_list = r"FIND\Species List"
-        ref_keyword = r"FIND\Reference Keyword Table"
-
-        # create list of features to check for selections
-        listo = [survey_site,el_pt,el_ln,el_py,cm_pt,cm_py]
-
-        # check for selections and error out if there are any selections
-        for l in listo:
-            desc = arcpy.Describe(l)
-            if desc.FIDSet == '':
-                pass
-            else:
-                arcpy.AddWarning("Please clear all of your selections and try again.")
-                sys.exit()
-
-        d = et_all
-        # get element name from dictionary
-        key_list = list(d.keys())
-        val_list = list(d.values())
-        elem_list = key_list[val_list.index(species)]
-
-        # get list of reference codes from species list, element/community points,lines,polys, and reference keyword table is species matches selection
-        spec_presence = sorted({row[0] for row in arcpy.da.SearchCursor(species_list,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
-        el_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N' and row[2]!='No'})
-        el_ln_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_ln,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
-        el_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(el_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
-        cm_pt_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_pt,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
-        cm_py_presence = sorted({row[0] for row in arcpy.da.SearchCursor(cm_py,['refcode','elem_name','elem_found']) if row[0] is not None and str(row[1])==str(elem_list) and row[2]!='N'and row[2]!='No'})
-        ref_keyword_presence = sorted({row[0] for row in arcpy.da.SearchCursor(ref_keyword,['refcode','ref_keyword']) if row[0] is not None and row[1].lower() == species.lower()})
-
-        # combine reference code lists
-        refcode_list = spec_presence+el_pt_presence+el_ln_presence+el_py_presence+cm_pt_presence+cm_py_presence+ref_keyword_presence
-
-        # create where clause based on number of reference codes in list
-        if len(refcode_list)==0:
-            arcpy.AddWarning("Your selected species was not found in any survey site :(")
-            sys.exit()
-        elif len(refcode_list)==1:
-            where_clause = "refcode = '{}'".format(''.join(refcode_list))
-        else:
-            where_clause = 'refcode IN {0}'.format(tuple(refcode_list))
-
-        # select survey site polygons and reference area polygons that match reference code in list
-        arcpy.SelectLayerByAttribute_management(survey_site,"NEW_SELECTION",where_clause)
-        arcpy.SelectLayerByAttribute_management(ref_poly,"NEW_SELECTION",where_clause)
-
-        arcpy.AddMessage("The survey sites within which "+ species+ " has been found include: " + ', '.join(refcode_list))
-        arcpy.AddMessage("The survey site(s) and/or reference area polygon(s) where " + species + " was found is(are) now selected.")
-
-
-######################################################################################################################################################
-## Survey Site Geometry Transfer Tool
-######################################################################################################################################################
-
-class GeometryTransferTool(object):
-    def __init__(self):
-        self.label = "Survey Site Geometry Reshaper"
-        self.description = "This tool allows you to reshape a survey site to the shape of another input polygon."
-        self.canRunInBackground = False
-        self.category = "Spatial Editing Tools"
 
     def getParameterInfo(self):
         survey_site = arcpy.Parameter(
-            displayName = "Selected Survey Site that needs to be reshaped",
+            displayName = "Selected Survey Site Layer",
             name = "survey_site",
             datatype = "GPFeatureLayer",
             parameterType = "Required",
             direction = "Input")
-        survey_site.value = 'FIND\Survey Site'
 
-        reshape_feature = arcpy.Parameter(
-            displayName = "Selected polygon feature that you want your Survey Site geometry to match",
-            name = "reshape_feature",
-            datatype = "GPFeatureLayer",
-            parameterType = "Required",
-            direction = "Input")
-
-        params = [survey_site,reshape_feature]
+        params = [survey_site]
         return params
 
     def isLicensed(self):
         return True
 
     def updateParameters(self, params):
+        # update choices for element name based on element type - uses the ET dictionaries
         return
 
     def updateMessages(self, params):
@@ -1382,37 +1461,208 @@ class GeometryTransferTool(object):
     def execute(self, params, messages):
         # define parameters
         survey_site = params[0].valueAsText
-        reshape_feature = params[1].valueAsText
 
-        # check that only one survey site is selected - error out if not
-        desc = arcpy.Describe(survey_site)
-        if desc.FIDSet == '':
-            arcpy.AddMessage("No survey sites are selected to be reshaped. Please select the survey site you wish to reshape and try again.")
-            sys.exit()
-        elif len((desc.FIDSet).split(';')) > 1:
-            arcpy.AddMessage("More than one survey site is selected. Please select only the survey site for which you wish to reshape and try again.")
+        count = int(arcpy.GetCount_management(survey_site).getOutput(0))
+
+        if count > 1:
+            arcpy.AddWarning("Please select 1 and only 1 survey site and try again.")
             sys.exit()
         else:
             pass
 
-        # check that only one reshape feature is selected - error out if not
-        desc = arcpy.Describe(reshape_feature)
-        if desc.FIDSet == '':
-            arcpy.AddMessage("No reshape feature is selected. Please select the reshape feature you wish to use as a template and try again.")
-            sys.exit()
-        elif len((desc.FIDSet).split(';')) > 1:
-            arcpy.AddMessage("More than one reshape feature is selected. Please select only the reshape feature which you wish to use as a template and try again.")
-            sys.exit()
+        with arcpy.da.SearchCursor(survey_site,"survey_sit") as cursor:
+            for row in cursor:
+                if row[0] is None:
+                    arcpy.AddWarning("Your survey site doesn't have a name. Please add a name in the 'Survey Site' field and try again.")
+                    sys.exit()
+                else:
+                    survey_name = row[0]
+
+        # establish location of .txt file report in same folder as script location
+        name = str(''.join(x for x in survey_name if x.isalnum()))
+        out_dir = os.path.join(os.path.dirname(__file__),'FIND_SurveyReports',name)
+        if os.path.exists(out_dir):
+            shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+        txt_file = os.path.join(out_dir,name+'.txt')
+
+        # define name of parameters - this will only work in ArcGIS Pro v2.9 or above
+        el_pt = r'FIND\Element Point'
+        el_ln = r'FIND\Element Line'
+        el_py = r'FIND\Element Polygon'
+        cm_pt = r'FIND\Community or Other Point'
+        cm_py = r'FIND\Community or Other Polygon'
+        species_list = r'FIND\Species List'
+        contact_list = r'FIND\Contacts'
+        et = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET'
+
+        with arcpy.da.SearchCursor(survey_site,['refcode','survey_start','survey_end','surveyors','survey_typ','survey_typ_comm','site_desc','disturb','threats']) as cursor:
+            for row in cursor:
+                refcode = row[0]
+                survey_start = row[1]
+                survey_end = row[2]
+                surveyors = row[3]
+                survey_type = row[4]
+                survey_type_comm = row[5]
+                site_desc = row[6]
+                disturb = row[7]
+                threats = row[8]
+
+        element_list = [el_pt,el_ln,el_py,cm_pt,cm_py]
+        elem_dict = {}
+        global_ids = []
+        key_id = 1
+        for elem in element_list:
+            with arcpy.da.SearchCursor(elem,["refcode","elem_name","elem_found","eo_rank","direc_elem","GlobalID"]) as cursor:
+                for row in cursor:
+                    if row[0] == refcode:
+                        elem_dict[key_id] = [int(row[1]),row[2],row[3],row[4]]
+                        global_ids.append(row[5])
+                        key_id += 1
+
+        with arcpy.da.SearchCursor(et,["ELSUBID","SNAME","SCOMNAME","SPROT","PBSSTATUS","EO_TRACK"]) as cursor:
+            for row in cursor:
+                for k,i in elem_dict.items():
+                    if i[0] == row[0]:
+                        elem_dict[k].append(row[1])
+                        elem_dict[k].append(row[2])
+                        elem_dict[k].append(row[3])
+                        elem_dict[k].append(row[4])
+                        elem_dict[k].append(row[5])
+
+        dups = []
+        elem_dict_nodups = {}
+        for key, val in elem_dict.items():
+            if val not in dups:
+                dups.append(val)
+                elem_dict_nodups[key] = val
+
+        for key, item in sorted(elem_dict_nodups.items()):
+            if item[6] == 'PE':
+                status = 'Endangered'
+            elif item[6] == 'PT':
+                status = 'Threatened'
+            elif item[6] == 'PR':
+                status = 'Rare'
+            elif item[6] == 'PV':
+                status = 'Vulnerable'
+            elif item[7] == 'W' or item[7] == 'WATCH':
+                status = 'Watch list'
+            elif item[7] == 'TU':
+                status = 'Undetermined'
+            elif item[7] == 'PE':
+                status = 'Endangered (proposed)'
+            elif item[7] == 'PT':
+                status = 'Threatened (proposed)'
+            elif item[7] == 'PR':
+                status = 'Rare (proposed)'
+            elif item[7] == 'PV':
+                status = 'Vulnerable (proposed)'
+            elif item[7] == 'PX':
+                status = 'Extirpated'
+            elif item[8] == 'W':
+                status = 'Watch list'
+            else:
+                status = item[6]
+            elem_dict_nodups[key].append(status)
+
+        elem_dict_filter = {}
+        for key, item in sorted(elem_dict_nodups.items()):
+            elem_dict_filter[key] = [item[5], item[4], item[1], item[9], item[2], item[3]]
+        for key, item in elem_dict_filter.items():
+            for x in range(6):
+                if item[x] is None:
+                    item[x] = '--'
+
+        landowners = []
+        with arcpy.da.SearchCursor(contact_list,["refcode","fname","lname"]) as cursor:
+            for row in cursor:
+                if row[0] == refcode:
+                    landowners.append(row[1]+" "+row[2])
+
+        species_dict = {}
+        with arcpy.da.SearchCursor(species_list,["refcode","elem_name","elem_found"]) as cursor:
+            for row in cursor:
+                if row[0] == refcode and row[2] != 'N':
+                    species_dict[int(row[1])] = []
+
+        with arcpy.da.SearchCursor(et, ["ELSUBID","SNAME","SCOMNAME","EO_TRACK"]) as cursor:
+            for row in cursor:
+                for k, i in species_dict.items():
+                    if k == row[0]:
+                        species_dict[k].append(row[1])
+                        species_dict[k].append(row[2])
+                        if row[3] == 'N':
+                            species_dict[k].append('No')
+                        elif row[3] == 'Y':
+                            species_dict[k].append('Yes')
+                        elif row[3] == 'W':
+                            species_dict[k].append('Watch')
+                        else:
+                            species_dict[k].append(row[3])
+
+        species_dict_filter = {k: v for k, v in species_dict.items() if len(v) != 0}
+
+        date_string = survey_start.strftime("%m/%d/%Y")
+        if survey_end is not None and survey_start != survey_end:
+            date_string = date_string+" - "+survey_end.strftime("%m/%d/%Y")
+        if survey_type == "QUAL":
+            survey_type = "Qualitative"
+        elif survey_type == "QUAN":
+            survey_type = "Quantitative"
         else:
-            pass
+            survey_type = ""
+        if survey_type_comm is not None and survey_type != "":
+            survey_type = survey_type + " - " + survey_type_comm
+        else:
+            survey_type = survey_type_comm
 
-        # use search cursor to get geometry token of reshape feature
-        with arcpy.da.SearchCursor(reshape_feature,"SHAPE@") as cursor:
-            for row in cursor:
-                geom = row[0]
+        with open(txt_file,'w') as f:
+            f.write("SURVEY NAME"+"\n")
+            f.write(survey_name+"\n")
+            f.write("\n")
+            f.write("LANDOWNER(S)"+"\n")
+            f.write(", ".join(landowners)+"\n\n")
+            f.write("SURVEY DATE"+"\n")
+            f.write(date_string+"\n\n")
+            f.write("SURVEYORS"+"\n")
+            f.write(surveyors+"\n\n")
+            f.write("SITE DESCRIPTION"+"\n")
+            f.write(site_desc+"\n\n")
+            f.write("SURVEY TYPE"+"\n")
+            f.write(survey_type+"\n\n")
+            f.write("THREATS AND RECOMMENDATIONS"+"\n")
+            f.write(threats +"\n\n")
 
-        # update selected survey site with updated geometry from reshape feature
-        with arcpy.da.UpdateCursor(survey_site,"SHAPE@") as cursor:
-            for row in cursor:
-                row[0] = geom
-                cursor.updateRow(row)
+        os.startfile(txt_file)
+
+        # write element list to .csv file
+        with open(os.path.join(out_dir,'FIND_ElementList_'+name+'.csv'), 'w', newline='') as csvfile:
+            csv_output = csv.writer(csvfile)
+            # write heading rows to .csv
+            csv_output.writerow(['Common Name','Latin Name','Found?','State Status','Population Rank*','Where Found'])
+            # write dictionary rows to .csv
+            for key in sorted(elem_dict_filter.keys()):
+                csv_output.writerow(elem_dict_filter[key])
+
+        os.startfile(os.path.join(out_dir,'FIND_ElementList_'+name+'.csv'))
+
+        # write species list to .csv file
+        with open(os.path.join(out_dir,'FIND_SpeciesList_'+name+'.csv'), 'w', newline='') as csvfile:
+            csv_output = csv.writer(csvfile)
+            # write heading rows to .csv
+            csv_output.writerow(['Latin Name','Common Name','Species tracked?'])
+            # write dictionary rows to .csv
+            for key in sorted(species_dict_filter.keys()):
+                csv_output.writerow(species_dict_filter[key])
+
+        os.startfile(os.path.join(out_dir,'FIND_SpeciesList_'+name+'.csv'))
+
+        for elem in element_list:
+            with arcpy.da.SearchCursor(elem, ['DATA','ATT_NAME','ATTACHMENTID','REL_GLOBALID']) as cursor:
+                for row in cursor:
+                    if row[3] in global_ids:
+                        attachment = row[0]
+                        filenum = "ATT" + str(row[2]) + "_"
+                        filename = filenum + str(row[1])
+                        open(fileLocation + os.sep + filename, 'wb').write(attachment.tobytes())

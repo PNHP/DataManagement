@@ -100,52 +100,52 @@ class BioticsUpdate(object):
         et_change = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET_changes'
 
 
-        with arcpy.da.SearchCursor(gdb_sourceln,"EXPT_DATE") as cursor:
-            for row in cursor:
-                export_date = row[0]
-        old_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_old,"ELSUBID")})
-        new_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_new,"ELSUBID")})
-
-        insert_fields = ["ELSUBID","change","old_value","new_value","EXPT_DATE"]
-
-        #records in new_elsubids that are not in old_elsubids, so therefore classified as added
-        arcpy.AddMessage("Checking for ELSUBID additions")
-        added_elsubids = np.setdiff1d(new_elsubids,old_elsubids)
-        for a in added_elsubids:
-            values = [a,"ELSUBID addition",None,a,export_date]
-            with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                cursor.insertRow(values)
-            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
-                cursor.insertRow(values)
-
-        #records in old_elsubids that are not in new_elsubids, so therefore classified as deleted
-        arcpy.AddMessage("Checking for ELSUBID deletions")
-        deleted_elsubids = np.setdiff1d(old_elsubids,new_elsubids)
-        for d in deleted_elsubids:
-            values = [d,"ELSUBID deletion",d,None,export_date]
-            with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                cursor.insertRow(values)
-            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
-                cursor.insertRow(values)
-
-        old_et_dict = {int(row[0]):[row[1:]] for row in arcpy.da.SearchCursor(et_old,["ELSUBID","ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"])}
-
-        change_fields = ["ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"]
-        dict_value_index = [0,1,2,3,4,5,6,7,8,9,10,11]
-        for c,i in zip(change_fields,dict_value_index):
-            arcpy.AddMessage("Checking for changes in " + c)
-            with arcpy.da.SearchCursor(et_new,["ELSUBID", c]) as cursor:
-                for row in cursor:
-                    for k,v in old_et_dict.items():
-                        if k==int(row[0]):
-                            if row[1] == v[0][i]:
-                                pass
-                            else:
-                                values = [int(row[0]), c, v[0][i], row[1], export_date]
-                                with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                                    cursor.insertRow(values)
-                                with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
-                                    cursor.insertRow(values)
+        # with arcpy.da.SearchCursor(gdb_sourceln,"EXPT_DATE") as cursor:
+        #     for row in cursor:
+        #         export_date = row[0]
+        # old_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_old,"ELSUBID")})
+        # new_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_new,"ELSUBID")})
+        #
+        # insert_fields = ["ELSUBID","change","old_value","new_value","EXPT_DATE"]
+        #
+        # #records in new_elsubids that are not in old_elsubids, so therefore classified as added
+        # arcpy.AddMessage("Checking for ELSUBID additions")
+        # added_elsubids = np.setdiff1d(new_elsubids,old_elsubids)
+        # for a in added_elsubids:
+        #     values = [a,"ELSUBID addition",None,a,export_date]
+        #     with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #     with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #
+        # #records in old_elsubids that are not in new_elsubids, so therefore classified as deleted
+        # arcpy.AddMessage("Checking for ELSUBID deletions")
+        # deleted_elsubids = np.setdiff1d(old_elsubids,new_elsubids)
+        # for d in deleted_elsubids:
+        #     values = [d,"ELSUBID deletion",d,None,export_date]
+        #     with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #     with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #
+        # old_et_dict = {int(row[0]):[row[1:]] for row in arcpy.da.SearchCursor(et_old,["ELSUBID","ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"])}
+        #
+        # change_fields = ["ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"]
+        # dict_value_index = [0,1,2,3,4,5,6,7,8,9,10,11]
+        # for c,i in zip(change_fields,dict_value_index):
+        #     arcpy.AddMessage("Checking for changes in " + c)
+        #     with arcpy.da.SearchCursor(et_new,["ELSUBID", c]) as cursor:
+        #         for row in cursor:
+        #             for k,v in old_et_dict.items():
+        #                 if k==int(row[0]):
+        #                     if row[1] == v[0][i]:
+        #                         pass
+        #                     else:
+        #                         values = [int(row[0]), c, v[0][i], row[1], export_date]
+        #                         with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #                             cursor.insertRow(values)
+        #                         with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
+        #                             cursor.insertRow(values)
 
         fs_layers = [fs_ptreps,fs_reps,fs_sourcept,fs_sourceln,fs_sourcepy,fs_et]
         gdb_layers = [gdb_ptreps,gdb_reps,gdb_sourcept,gdb_sourceln,gdb_sourcepy,gdb_et]
