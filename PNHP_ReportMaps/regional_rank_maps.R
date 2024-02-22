@@ -57,7 +57,7 @@ for (i in 1:length(snames$UID)) {
   constatus_US <- jsonlite::flatten(constatus_US) # gets rid of the nested data frame
   constatus_CA <- as.data.frame(res$elementNationals$elementSubnationals[match("CA", res$elementNationals$nation$isoCode)])
   constatus_CA <- jsonlite::flatten(constatus_CA) # gets rid of the nested data frame
-  # this handles species for which there are no conservatoin statuses...
+  # this handles species for which there are no conservation statuses...
   if(all(constatus_CA==0)&all(constatus_US==0)){
     cat("There is no conservation statuses for this species, skipping...\n")
   } else {
