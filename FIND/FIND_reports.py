@@ -140,7 +140,7 @@ with arcpy.da.UpdateCursor(id_table, ['ELCODE','Location','Reviewer']) as cursor
         elif ((row[0].startswith('AR') or row[0].startswith('AA')) and row[1] == "W"):
             row[2] = "rmiller"
         elif row[0].startswith('AM'):
-            row[2] = "jwisgo"
+            row[2] = "ceichelberger"
         elif row[0].startswith('AF') and row[1] == "E":
             row[2] = "dfischer"
         elif row[0].startswith('AF') and row[1] == "W":

@@ -17,14 +17,16 @@
 
 # import system modules
 import arcpy, os, datetime
-from arcpy import env
-from arcpy.sa import *
+import csv
 
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-quarter = raw_input("Enter the quarter for the report (type q1, q2, q3, q4): ")
-year = raw_input("Enter the year for the report (YYYY): ")
+# quarter = raw_input("Enter the quarter for the report (type q1, q2, q3, q4): ")
+# year = raw_input("Enter the year for the report (YYYY): ")
+
+quarter = "q1"
+year = "2024"
 
 if quarter.lower() == 'q1':
     q = 4
@@ -39,7 +41,11 @@ else:
     print("You have not entered a valid response.")
 
 # define env.workspace - this space is used for all temporary files
-env.workspace = r'memory'
+scratch = r'H:\\temp\\FIND_Reporting.gdb'
+arcpy.env.workspace = r'H:\\temp\\FIND_Reporting.gdb'
+
+# path to FIND enterprise database
+elementGDB = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND_Working_pgh-gis0.sde"
 
 # file names of the five element feature classes in the FIND enterprise GDB
 input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line","FIND2024.DBO.el_poly", "FIND2024.DBO.comm_poly",
@@ -49,46 +55,43 @@ input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line","FIND2024.DBO.el_
 elementTables = ["element_point", "element_line", "element_poly", "community_poly",
 "community_point", "survey_poly"]
 
-# path to FIND enterprise database
-elementGDB = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND_Working_gis0.sde"
+ReportsPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports\DCNR Quarterly FIND Reports'
 
-reportPath = r'P:\Conservation Programs\Natural Heritage Program\Data Management\Instructions, procedures and documentation\FIND\Reports\DCNR Quarterly FIND Reports'
+for ins, output in zip(input_features, elementTables):
+    feature = os.path.join(elementGDB, ins)
+    print(feature)
 
-def elementType():
-    '''function that assigns element type to all features based on name of
-    shapefile within which the feature is contained'''
+    # fieldmappings = arcpy.FieldMappings()
+    # fieldmappings.addTable(feature)
 
-    for ins, output in zip(input_features, elementTables):
-        feature = os.path.join(elementGDB, ins)
-        print(feature)
+    # fields to be kept after spatial join
+    keepFields = ["OID", "dm_stat", "elem_type", "created_date"]
 
-        fieldmappings = arcpy.FieldMappings()
-        fieldmappings.addTable(feature)
+    # remove all fields not in keep fields from field map
+    # for field in fieldmappings.fields:
+    #     if field.name not in keepFields:
+    #         fieldmappings.removeFieldMap(fieldmappings.findFieldMapIndex
+    #         (field.name))
 
-        # fields to be kept after spatial join
-        keepFields = ["OID", "dm_stat", "elem_type", "created_date"]
+    arcpy.env.maintainAttachments = False
+    if ins == "FIND2024.DBO.survey_poly":
+        arcpy.TableToTable_conversion(os.path.join(elementGDB, ins), scratch, output, "survey_status = 'comp'")
+    else:
+        arcpy.TableToTable_conversion(os.path.join(elementGDB, ins), scratch, output)
 
-        # remove all fields not in keep fields from field map
-        for field in fieldmappings.fields:
-            if field.name not in keepFields:
-                fieldmappings.removeFieldMap(fieldmappings.findFieldMapIndex
-                (field.name))
 
-        arcpy.TableToTable_conversion(os.path.join(elementGDB, ins), env.workspace, output, "", fieldmappings)
+for table in elementTables:
+    arcpy.AddField_management(os.path.join(scratch,table), "Feature_Class", "TEXT", field_length = 50, field_alias = "Taxa")
+    arcpy.CalculateField_management(os.path.join(scratch,table), "Feature_Class", "'" + table + "'", "PYTHON_9.3")
 
-    for table in elementTables:
-
-        arcpy.AddField_management(table, "Feature_Class", "TEXT", field_length = 50, field_alias = "Taxa")
-
-        arcpy.CalculateField_management(table, "Feature_Class", "'" + table + "'", "PYTHON_9.3")
-
-    for table in elementTables[0:3]:
-        with arcpy.da.UpdateCursor(table, ['elem_type', 'Feature_Class']) as cursor:
-            for row in cursor:
+for table in elementTables[0:3]:
+    with arcpy.da.UpdateCursor(table, ['elem_type', 'Feature_Class']) as cursor:
+        for row in cursor:
+            if row[0] is not None:
                 if row[0] == 0 or row[0] == 1:
                     row[1] = 'Lepidoptera and Other Insects'
                     cursor.updateRow(row)
-                elif row [0] == 2:
+                elif row[0] == 2:
                     row[1] = 'Other Invertebrates'
                     cursor.updateRow(row)
                 elif row[0] == 3:
@@ -98,57 +101,81 @@ def elementType():
                     row[1] = 'Vertebrate Animals'
                     cursor.updateRow(row)
 
-        arcpy.DeleteField_management(table, "elem_type")
+elementRecords = arcpy.Merge_management(elementTables, os.path.join(scratch, "elementRecords"))
 
-    elementRecords = arcpy.CreateTable_management(env.workspace, "elementRecords", "element_point")
-    arcpy.Append_management(elementTables, elementRecords)
-
-    with arcpy.da.UpdateCursor(elementRecords, ["dm_stat", "Feature_Class"]) as cursor:
-        for row in cursor:
-            if row[0] == "dr":
-                row[0] = "Draft"
-                cursor.updateRow(row)
-            if row[0] == "idrev":
-                row[0] = "Ready for ID Review"
-                cursor.updateRow(row)
-            if row[0] == "dmproc":
-                row[0] = "DM Processed"
-                cursor.updateRow(row)
-            if row[0] == "dmready":
-                row[0] = "Ready for DM"
-                cursor.updateRow(row)
-            if row[0] == "dmpend":
-                row[0] = "DM Pending"
-                cursor.updateRow(row)
-##            if row[0] == "idprob":
-##                row[0] = "ID Problems"
-            if row[1] == "community_poly" or row[1] == "community_point":
-                row[1] = "Communities"
-                cursor.updateRow(row)
-            if row [1] == "survey_poly":
-                row[1] = "Survey Sites"
-                cursor.updateRow(row)
-
-    with arcpy.da.UpdateCursor(elementRecords, "created_date") as cursor:
-        for row in cursor:
-            if row[0] > datetime.datetime(int(year), int(q), 01, 0, 0, 0, 0):
-                cursor.deleteRow()
-
-    summaryTable = arcpy.Statistics_analysis(elementRecords, "summaryTable", "Feature_Class COUNT;dm_stat COUNT",
-    "Feature_Class;dm_stat")
-
-    pivotTable = arcpy.PivotTable_management(summaryTable, 'Feature_Class', 'dm_stat', 'FREQUENCY', "pivotTable")
-
-    arcpy.AddField_management(pivotTable, "Total", "LONG", "", "", 8, "Total")
-    with arcpy.da.UpdateCursor(pivotTable,["Total","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","idprob"]) as cursor:
-        for row in cursor:
-            row[0] = row[1]+row[2]+row[3]+row[4]+row[5]+row[6]
+with arcpy.da.UpdateCursor(elementRecords, ["dm_stat", "Feature_Class"]) as cursor:
+    for row in cursor:
+        if row[0] == "dr":
+            row[0] = "Draft"
+            cursor.updateRow(row)
+        if row[0] == "idrev":
+            row[0] = "Ready for ID Review"
+            cursor.updateRow(row)
+        if row[0] == "dmproc":
+            row[0] = "DM Processed"
+            cursor.updateRow(row)
+        if row[0] == "dmready":
+            row[0] = "Ready for DM"
+            cursor.updateRow(row)
+        if row[0] == "dmpend":
+            row[0] = "DM Pending"
+            cursor.updateRow(row)
+        if row[0] == "idprob":
+            row[0] = "ID Problems"
+            cursor.updateRow(row)
+        if row[1] == "community_poly" or row[1] == "community_point":
+            row[1] = "Communities"
+            cursor.updateRow(row)
+        if row [1] == "survey_poly":
+            row[1] = "Survey Sites"
             cursor.updateRow(row)
 
-    # export table as Excel file to produce final report
-    filename = "FIND Quarterly Report " + str(year) + quarter + ".xls"
-    outTable = os.path.join(reportPath, filename)
-    arcpy.TableToExcel_conversion(pivotTable, outTable)
-    print("DCNR FIND Quarterly Report Created!")
+with arcpy.da.UpdateCursor(elementRecords, "created_date") as cursor:
+    for row in cursor:
+        if row[0] > datetime.datetime(int(year), int(q), 1, 0, 0, 0, 0):
+            cursor.deleteRow()
 
-elementType()
+summaryTable = arcpy.Statistics_analysis(elementRecords, os.path.join(scratch,"summaryTable"), "Feature_Class COUNT;dm_stat COUNT",
+"Feature_Class;dm_stat")
+
+pivotTable = arcpy.PivotTable_management(summaryTable, 'Feature_Class', 'dm_stat', 'FREQUENCY', os.path.join(scratch,"pivotTable"))
+
+arcpy.AddField_management(pivotTable, "Total", "LONG", "", "", 8, "Total")
+with arcpy.da.UpdateCursor(pivotTable,["Total","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems"]) as cursor:
+    for row in cursor:
+        if row[1] is None:
+            row[1] = 0
+            cursor.updateRow(row)
+        if row[2] is None:
+            row[2] = 0
+            cursor.updateRow(row)
+        if row[3] is None:
+            row[3] = 0
+            cursor.updateRow(row)
+        if row[4] is None:
+            row[4] = 0
+            cursor.updateRow(row)
+        if row[5] is None:
+            row[5] = 0
+            cursor.updateRow(row)
+        if row[6] is None:
+            row[6] = 0
+            cursor.updateRow(row)
+        row[0] = row[1]+row[2]+row[3]+row[4]+row[5]+row[6]
+        cursor.updateRow(row)
+
+# create dictionary to hold all attributes
+summary_list = []
+with arcpy.da.SearchCursor(pivotTable,["Feature_Class","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems","Total"]) as cursor:
+    for row in cursor:
+        summary_list.append(row)
+
+# write to .csv file
+with open(os.path.join(ReportsPath,"FIND Quarterly Report " + str(year) + quarter + ".csv"), 'w', newline='') as csvfile:
+    csv_output = csv.writer(csvfile)
+    # write heading rows to .csv
+    csv_output.writerow(["Feature Class","DM Pending","DM Processed","Ready for DM","Draft","Ready for ID Review","ID Problems","Total"])
+    # write dictionary rows to .csv
+    for row in summary_list:
+        csv_output.writerow(row)
+print("DCNR FIND Quarterly Report Created!")

@@ -359,7 +359,8 @@ class RankCalculatorStats(object):
             name = "huc08",
             datatype = "GPFeatureLayer",
             multiValue = "False",
-            direction = "Input")
+            direction = "Input",
+            parameterType = "Optional")
 
         clip_lyr = arcpy.Parameter(
             displayName = "Optional - subnational boundary used to clip range extent (if not chosen, the range extent may go beyond the subnational boundary)",
@@ -468,8 +469,9 @@ class RankCalculatorStats(object):
         arcpy.AddMessage("calculating range extent")
         # if convex hull was chosen, then we will calculate the convex hull for range extent
         if range_type == "Convex Hull":
+            export_features = arcpy.CopyFeatures_management(input_fc,os.path.join("memory","export_features"))
             # creating convex hull
-            convex_hull = arcpy.MinimumBoundingGeometry_management(input_fc,os.path.join("memory","convex_hull"),"CONVEX_HULL","LIST",species_code)
+            convex_hull = arcpy.MinimumBoundingGeometry_management(export_features,os.path.join("memory","convex_hull"),"CONVEX_HULL","LIST",species_code)
             # if clip layer was used, then we will clip to the boundary of clip layer and use for geometry
             if clip_lyr:
                 hull_clip = arcpy.Clip_analysis(convex_hull,clip_lyr,os.path.join("memory","hull_clip"))

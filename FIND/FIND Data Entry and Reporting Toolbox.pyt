@@ -16,7 +16,7 @@ Update Notes: 03/2022 - updated path names to FIND2022 feature service, updated 
 import arcpy, datetime,os,sys
 import csv
 import shutil
-from FIND_et_2023 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
+from FIND_et_2024 import * # these need to be updated yearly with ET updates - use ET_to_PythonDictionary.py script to create dictionaries
 
 arcpy.env.overwriteOutput = True
 

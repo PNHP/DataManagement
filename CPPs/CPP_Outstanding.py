@@ -5,6 +5,9 @@
 # Created:     2022-05-18
 # -------------------------------------------------------------------------------
 
+eo_log_path = "csv"
+# eo_log_path = "access"
+
 # import packages
 import arcpy
 import os
@@ -26,7 +29,10 @@ cpp_db = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_Specs\\CPP_SpecID.sqlite'
 BioticsGDB = r'W:\Heritage\Heritage_Data\Biotics_datasets.gdb'
 outPath = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_EOReps\\CPP_EOReps.gdb'
 reportPath = r'W:\\Heritage\\Heritage_Data\\CPP\\CPP_EOReps'
-accessdb = r'P:\Conservation Programs\Natural Heritage Program\Data Management\ACCESS databases\Processing_database\DM_processing.accdb'
+if eo_log_path == "csv":
+    accessdb = r'H:\temp\EO log.csv' # enter path to exported EO Log .csv file
+else:
+    accessdb = r'P:\Conservation Programs\Natural Heritage Program\Data Management\ACCESS databases\Processing_database\DM_processing.accdb'
 scratch = r'H:\temp\temp.gdb'
 
 cpp_core = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.CPPConservationPlanningPolygons\\PNHP.DBO.CPP_Core'
@@ -85,7 +91,7 @@ date = datetime.today().strftime("%Y%m%d")
 
 print("create CPP EOptreps layer")
 # use query to copy all qualifying EO records to new table
-where_clause = "(((ELCODE LIKE 'AB%' AND LASTOBS >= '1990') OR (ELCODE = 'ABNKC12060' AND LASTOBS >= '1980')) OR (((ELCODE LIKE 'P%' OR ELCODE LIKE 'N%' OR ELCODE LIKE 'C%' OR ELCODE LIKE 'H%' OR ELCODE LIKE 'G%') AND (LASTOBS >= '{0}')) OR ((ELCODE LIKE 'P%' OR ELCODE LIKE 'N%') AND (USESA = 'LE' OR USESA = 'LT') AND (LASTOBS >= '1950'))) OR (((ELCODE LIKE 'AF%' OR ELCODE LIKE 'AA%' OR ELCODE LIKE 'AR%') AND (LASTOBS >= '1950')) OR (ELCODE = 'ARADE03011')) OR (((ELCODE LIKE 'AM%' OR ELCODE LIKE 'OBAT%') AND ELCODE <> 'AMACC01150' AND LASTOBS >= '1970') OR (ELCODE = 'AMACC01100' AND LASTOBS >= '1950') OR (ELCODE = 'AMACC01150' AND LASTOBS >= '1985')) OR (((ELCODE LIKE 'IC%' OR ELCODE LIKE 'IIEPH%' OR ELCODE LIKE 'IITRI%' OR ELCODE LIKE 'IMBIV%' OR ELCODE LIKE 'IMGAS%' OR ELCODE LIKE 'IP%' OR ELCODE LIKE 'IZ%') AND LASTOBS >= '1950') OR (ELCODE LIKE 'I%' AND ELCODE NOT LIKE 'IC%' AND ELCODE NOT LIKE 'IIEPH%' AND ELCODE NOT LIKE 'IITRI%' AND ELCODE NOT LIKE 'IMBIV%' AND ELCODE NOT LIKE 'IMGAS%' AND ELCODE NOT LIKE 'IP%' AND ELCODE NOT LIKE 'IZ%' AND LASTOBS >= '1980'))OR (LASTOBS = '' OR LASTOBS = ' ')) AND (EO_TRACK = 'Y' OR EO_TRACK = 'W') AND (LASTOBS <> 'NO DATE' AND EORANK <> 'X' AND EORANK <> 'X?') AND (LU_exclude = 'N' OR LU_exclude IS NULL)".format(
+where_clause = "(((ELCODE LIKE 'AB%' AND LASTOBS >= '1990') OR (ELCODE = 'ABNKC12060' AND LASTOBS >= '1980')) OR (((ELCODE LIKE 'P%' OR ELCODE LIKE 'N%' OR ELCODE LIKE 'C%' OR ELCODE LIKE 'H%' OR ELCODE LIKE 'G%') AND (LASTOBS >= '{0}')) OR ((ELCODE LIKE 'P%' OR ELCODE LIKE 'N%') AND (USESA = 'LE' OR USESA = 'LT') AND (LASTOBS >= '1950'))) OR (((ELCODE LIKE 'AF%' OR ELCODE LIKE 'AA%' OR ELCODE LIKE 'AR%') AND (LASTOBS >= '1950')) OR (ELCODE = 'ARADE03011')) OR (((ELCODE LIKE 'AM%' OR ELCODE LIKE 'OBAT%') AND ELCODE <> 'AMACC01150' AND LASTOBS >= '1970') OR (ELCODE = 'AMACC01100' AND LASTOBS >= '1950') OR (ELCODE = 'AMACC01150' AND LASTOBS >= '1985')) OR (((ELCODE LIKE 'IC%' OR ELCODE LIKE 'IIEPH%' OR ELCODE LIKE 'IITRI%' OR ELCODE LIKE 'IMBIV%' OR ELCODE LIKE 'IMGAS%' OR ELCODE LIKE 'IP%' OR ELCODE LIKE 'IZ%') AND LASTOBS >= '1950') OR (ELCODE LIKE 'I%' AND ELCODE NOT LIKE 'IC%' AND ELCODE NOT LIKE 'IIEPH%' AND ELCODE NOT LIKE 'IITRI%' AND ELCODE NOT LIKE 'IMBIV%' AND ELCODE NOT LIKE 'IMGAS%' AND ELCODE NOT LIKE 'IP%' AND ELCODE NOT LIKE 'IZ%' AND LASTOBS >= '1980'))OR (LASTOBS = '' OR LASTOBS = ' ')) AND (EO_TRACK = 'Y' OR EO_TRACK = 'W') AND (LASTOBS <> 'NO DATE' AND EORANK <> 'X' AND EORANK <> 'X?' AND EST_RA <> 'Very Low' AND EST_RA <> 'Low') AND (LU_exclude = 'N' OR LU_exclude IS NULL)".format(
     year)
 cpp_eo_ptreps = arcpy.TableToTable_conversion(ptreps, scratch, 'cpp_eo_ptreps_' + date, where_clause)
 
@@ -123,20 +129,38 @@ with arcpy.da.SearchCursor(cpp_supporting, ["EO_ID", "BioticsExportDate"]) as cu
         supporting_dict[row[0]] = [row[1]]
 
 print("create eo log dataframe and delete extras")
-# #connect to the processing DB and get ALL records from processing DB
-# print("Connecting to processing DB")
-# conn = pyodbc.connect('Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ='+accessdb+r';')
-# cursor = conn.cursor()
-# cursor.execute("SELECT EOID, [Date created, updated or deleted], [Mapper - new, update, or deletion], [Brief description], County FROM [EO log] WHERE EOID IS NOT NULL AND [Mapper - new, update, or deletion] <> 'NA'")
-# records = cursor.fetchall()
-# eolog_df = pd.DataFrame.from_records(records, columns=["EO_ID", "Date_Updated", "Mapper_Desc", "Desc", "County"])
 
 
-eolog_df = eolog_df.sort_values(by="Date_Updated", ascending=False).drop_duplicates(subset="EO_ID", keep='first')
+if eo_log_path == "access":
+    #connect to the processing DB and get ALL records from processing DB
+    print("Connecting to processing DB")
+    conn = pyodbc.connect('Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ='+accessdb+r';')
+    cursor = conn.cursor()
+    cursor.execute("SELECT EOID, [Date created, updated or deleted], [Mapper - new, update, or deletion], [Brief description], County FROM [EO log] WHERE EOID IS NOT NULL AND [Mapper - new, update, or deletion] <> 'NA'")
+    records = cursor.fetchall()
+    eolog = pd.DataFrame.from_records(records, columns=["EO_ID", "Date_Updated", "Mapper_Desc", "Desc", "County"])
+
+elif eo_log_path == "csv":
+    print("Connecting to .csv export")
+    # read in .csv eo log file to Pandas dataframe with Latin-1 encoding to deal with weird characters
+    eolog = pd.read_csv(accessdb, sep=',', encoding="Latin-1", low_memory=False)
+    # filter out records that have Null EOIDs and that don't have map updates
+    eolog = eolog.query('EOID.notna() and `Mapper - new, update, or deletion`.notna()')
+    # convert date field to datetime from string
+    eolog.loc[:,'Date created, updated or deleted'] = pd.to_datetime(eolog.loc[:,'Date created, updated or deleted'])
+
+    # keep only needed columns
+    eolog = eolog[['EOID', 'Date created, updated or deleted', 'Mapper - new, update, or deletion', 'Brief description', 'County']]
+    # convert EOID field to integer from float
+    eolog['EOID'] = eolog['EOID'].astype('Int64')
+else:
+    print("there is some issue with the EO Log input type")
+
+eolog = eolog.sort_values(by='Date created, updated or deleted', ascending=False).drop_duplicates(subset="EOID", keep='first')
 
 eolog_dict = {}
-for index, row in eolog_df.iterrows():
-    eolog_dict[row["EO_ID"]] = [row["Date_Updated"], row["Mapper_Desc"]]
+for index, row in eolog.iterrows():
+    eolog_dict[row['EOID']] = [row['Date created, updated or deleted'], row['Mapper - new, update, or deletion']]
 
 print("create eo log update lists")
 core_update_list = []
@@ -187,7 +211,7 @@ with arcpy.da.SearchCursor(cpp_eo_ptreps,
         final_dict[row[0]] = [row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11],
                               row[12]]
 
-with open(os.path.join(reportPath, 'CPP_Outstanding_' + date + '.csv'), 'wb') as csvfile:
+with open(os.path.join(reportPath, 'CPP_Outstanding_' + date + '.csv'), 'w', newline='') as csvfile:
     csv_output = csv.writer(csvfile)
     csv_output.writerow(
         ['EO_ID', 'Core Status', 'Supporting Status', 'SNAME', 'SCOMNAME', 'specid', 'specid_2', 'specid_3',
