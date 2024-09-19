@@ -31,12 +31,13 @@ env.workspace = r'memory'
 ################################################################################
 
 # define paths
-elementGDB = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis0.sde"
-counties = r'C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\StateLayers_Default_pgh-gis0.sde\\StateLayers.DBO.Boundaries_Political\\StateLayers.DBO.County'
-et = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\PNHP_Working_pgh-gis0.sde\PNHP.DBO.ET"
+elementGDB = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis1.sde"
+counties = r'C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\StateLayers_Default_pgh-gis1.sde\\DBO.PolitcalBouandry_County'
+#counties = r"W:\\Heritage\\Heritage_Data\\CPP\\CPP_Layers\\CPP_Layers.gdb\\PA_County"
+et = r"https://gis.waterlandlife.org/server/rest/services/PNHP/Biotics_READ_ONLY/FeatureServer/5"
 
 # define input and output features
-input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line", "FIND2024.DBO.comm_poly", "FIND2024.DBO.comm_pt", "FIND2024.DBO.el_poly", "FIND2024.DBO.survey_poly"]
+input_features = ["DBO.el_pt", "DBO.el_line", "DBO.comm_poly", "DBO.comm_pt", "DBO.el_poly", "DBO.survey_poly"]
 elementShapefiles = ["element_point", "element_line", "community_poly", "community_point", "element_poly", "survey_site"]
 elementTables = ["element_point1", "element_line1", "community_poly1", "community_point1", "element_poly1", "survey_site1"]
 

@@ -15,8 +15,8 @@
 #### EXPORTED EO LOG.
 
 #### USER MUST SET DATE RANGE BELOW!!!!!!!!!!!!
-date1 = "01/30/2024"
-date2 = "02/24/2024"
+date1 = "05/30/2024"
+date2 = "06/27/2024"
 
 # eo_log_path = "access" # this option needs to run on a computer with MS Access Drivers installed to access processing DB with PYODBC
 eo_log_path = "csv" # for this option, you need to manually export a .csv of the EO Log from the Processing Access database and update the path below

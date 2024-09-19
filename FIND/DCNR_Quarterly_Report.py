@@ -18,6 +18,8 @@
 # import system modules
 import arcpy, os, datetime
 import csv
+from getpass import getuser
+
 
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
@@ -25,7 +27,7 @@ arcpy.env.overwriteOutput = True
 # quarter = raw_input("Enter the quarter for the report (type q1, q2, q3, q4): ")
 # year = raw_input("Enter the year for the report (YYYY): ")
 
-quarter = "q1"
+quarter = "q3"
 year = "2024"
 
 if quarter.lower() == 'q1':
@@ -41,15 +43,16 @@ else:
     print("You have not entered a valid response.")
 
 # define env.workspace - this space is used for all temporary files
-scratch = r'H:\\temp\\FIND_Reporting.gdb'
-arcpy.env.workspace = r'H:\\temp\\FIND_Reporting.gdb'
+scratch = r'in_memory'
+arcpy.env.workspace = r'in_memory'
 
 # path to FIND enterprise database
-elementGDB = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND_Working_pgh-gis0.sde"
+username = getuser().lower()
+elementGDB = r"C:\\Users\\"+username+r"\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\FIND_Working_pgh-gis1.sde"
 
 # file names of the five element feature classes in the FIND enterprise GDB
-input_features = ["FIND2024.DBO.el_pt", "FIND2024.DBO.el_line","FIND2024.DBO.el_poly", "FIND2024.DBO.comm_poly",
-"FIND2024.DBO.comm_pt",  "FIND2024.DBO.survey_poly"]
+input_features = ["DBO.el_pt", "DBO.el_line","DBO.el_poly", "DBO.comm_poly",
+"DBO.comm_pt",  "DBO.survey_poly"]
 
 # file names that are used for temporary element tables
 elementTables = ["element_point", "element_line", "element_poly", "community_poly",
@@ -74,7 +77,7 @@ for ins, output in zip(input_features, elementTables):
     #         (field.name))
 
     arcpy.env.maintainAttachments = False
-    if ins == "FIND2024.DBO.survey_poly":
+    if ins == "DBO.survey_poly":
         arcpy.TableToTable_conversion(os.path.join(elementGDB, ins), scratch, output, "survey_status = 'comp'")
     else:
         arcpy.TableToTable_conversion(os.path.join(elementGDB, ins), scratch, output)
@@ -103,7 +106,7 @@ for table in elementTables[0:3]:
 
 elementRecords = arcpy.Merge_management(elementTables, os.path.join(scratch, "elementRecords"))
 
-with arcpy.da.UpdateCursor(elementRecords, ["dm_stat", "Feature_Class"]) as cursor:
+with arcpy.da.UpdateCursor(os.path.join(scratch, "elementRecords"), ["dm_stat"]) as cursor:
     for row in cursor:
         if row[0] == "dr":
             row[0] = "Draft"
@@ -123,25 +126,29 @@ with arcpy.da.UpdateCursor(elementRecords, ["dm_stat", "Feature_Class"]) as curs
         if row[0] == "idprob":
             row[0] = "ID Problems"
             cursor.updateRow(row)
-        if row[1] == "community_poly" or row[1] == "community_point":
-            row[1] = "Communities"
+
+with arcpy.da.UpdateCursor(os.path.join(scratch, "elementRecords"), ["Feature_Class"]) as cursor:
+    for row in cursor:
+        if row [0] == "survey_poly":
+            row[0] = "Survey Sites"
             cursor.updateRow(row)
-        if row [1] == "survey_poly":
-            row[1] = "Survey Sites"
+        if row[0] == "community_poly" or row[0] == "community_point":
+            row[0] = "Communities"
             cursor.updateRow(row)
 
-with arcpy.da.UpdateCursor(elementRecords, "created_date") as cursor:
+
+with arcpy.da.UpdateCursor(os.path.join(scratch, "elementRecords"), "created_date") as cursor:
     for row in cursor:
         if row[0] > datetime.datetime(int(year), int(q), 1, 0, 0, 0, 0):
             cursor.deleteRow()
 
-summaryTable = arcpy.Statistics_analysis(elementRecords, os.path.join(scratch,"summaryTable"), "Feature_Class COUNT;dm_stat COUNT",
+summaryTable = arcpy.Statistics_analysis(os.path.join(scratch, "elementRecords"), os.path.join(scratch,"summaryTable"), "Feature_Class COUNT;dm_stat COUNT",
 "Feature_Class;dm_stat")
 
-pivotTable = arcpy.PivotTable_management(summaryTable, 'Feature_Class', 'dm_stat', 'FREQUENCY', os.path.join(scratch,"pivotTable"))
+pivotTable = arcpy.PivotTable_management(os.path.join(scratch,"summaryTable"), 'Feature_Class', 'dm_stat', 'FREQUENCY', os.path.join(scratch,"pivotTable"))
 
-arcpy.AddField_management(pivotTable, "Total", "LONG", "", "", 8, "Total")
-with arcpy.da.UpdateCursor(pivotTable,["Total","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems"]) as cursor:
+arcpy.AddField_management(os.path.join(scratch,"pivotTable"), "Total", "LONG", "", "", 8, "Total")
+with arcpy.da.UpdateCursor(os.path.join(scratch,"pivotTable"),["Total","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems"]) as cursor:
     for row in cursor:
         if row[1] is None:
             row[1] = 0
@@ -166,7 +173,7 @@ with arcpy.da.UpdateCursor(pivotTable,["Total","DM_Pending","DM_Processed","Read
 
 # create dictionary to hold all attributes
 summary_list = []
-with arcpy.da.SearchCursor(pivotTable,["Feature_Class","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems","Total"]) as cursor:
+with arcpy.da.SearchCursor(os.path.join(scratch,"pivotTable"),["Feature_Class","DM_Pending","DM_Processed","Ready_for_DM","Draft","Ready_for_ID_Review","ID_Problems","Total"]) as cursor:
     for row in cursor:
         summary_list.append(row)
 

@@ -69,13 +69,15 @@ class BioticsUpdate(object):
         # username = params[1].valueAsText
         # password = params[2].valueAsText
 
+
         # system_username = getuser().upper()
 
-        pnhp_db = r"C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde"
+        pnhp_db = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis1.sde"
 ##        arcpy.CreateVersion_management(working_db,"DBO.Working",username+"_TEMP","PUBLIC")
 ##        pnhp_db = arcpy.CreateDatabaseConnection_management("H:","PNHP_"+username+".sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL",'"WPC\\'+system_username+'".'+username+"_TEMP")
 
-        biotics_db_path = r"PNHP.DBO.Biotics\\PNHP.DBO."
+        edit = arcpy.da.Editor(pnhp_db)
+        biotics_db_path = r"PNHP.DBO.Biotics\\DBO."
 
         eo_ptreps = r'eo_ptreps'
         eo_reps = r'eo_reps'
@@ -88,9 +90,9 @@ class BioticsUpdate(object):
         fs_sourcept = os.path.join(str(pnhp_db),biotics_db_path+eo_sourcept)
         fs_sourceln = os.path.join(str(pnhp_db),biotics_db_path+eo_sourceln)
         fs_sourcepy = os.path.join(str(pnhp_db),biotics_db_path+eo_sourcepy)
-        fs_et = os.path.join(str(pnhp_db),"PNHP.DBO.ET")
-        et_change_server = os.path.join(str(pnhp_db), r"PNHP.DBO.ET_changes")
-        visits_server = os.path.join(str(pnhp_db),r"PNHP.DBO.VISITS")
+        fs_et = os.path.join(str(pnhp_db),"DBO.ET")
+        et_change_server = os.path.join(str(pnhp_db), r"DBO.ET_changes")
+        visits_server = os.path.join(str(pnhp_db),r"DBO.VISITS")
 
         gdb_ptreps = os.path.join(gdb,eo_ptreps)
         gdb_reps = os.path.join(gdb,eo_reps)
@@ -158,12 +160,12 @@ class BioticsUpdate(object):
                                 with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
                                     cursor.insertRow(values)
 
+
         # create lists for the feature service layers and the update gdb layers
         fs_layers = [visits_server, fs_ptreps,fs_reps,fs_sourcept,fs_sourceln,fs_sourcepy,fs_et]
         gdb_layers = [gdb_visits, gdb_ptreps,gdb_reps,gdb_sourcept,gdb_sourceln,gdb_sourcepy,gdb_et]
 
         # start editing workspace so we can delete records from last month and append new records
-        edit = arcpy.da.Editor(pnhp_db)
         edit.startEditing(False,False)
         edit.startOperation()
 
@@ -174,9 +176,6 @@ class BioticsUpdate(object):
                 for row in cursor:
                     if row[0] is not None:
                         cursor.deleteRow()
-
-        # loop through feature service layers and append records from update gdb.
-        for fs,g in zip(fs_layers,gdb_layers):
             arcpy.AddMessage("Appending features to: "+fs)
             arcpy.Append_management(g,fs,schema_type="NO_TEST")
 
@@ -203,3 +202,38 @@ class BioticsUpdate(object):
             for row in summary_list:
                 csv_output.writerow(row)
 
+        # define function to update foreign rel_globalid field with primary globalid based on some other ID value
+        def update_rel_guid(parent_feature, primary_key, child_feature, foreign_key, related_guid):
+            related_dict = {row[0]: row[1] for row in arcpy.da.SearchCursor(parent_feature, [primary_key, "GlobalID"]) if
+                            row[0] is not None}
+            with arcpy.da.UpdateCursor(child_feature, [foreign_key, related_guid]) as cursor:
+                for row in cursor:
+                    for k, v in related_dict.items():
+                        if k == row[0]:
+                            row[1] = v
+                            cursor.updateRow(row)
+                        else:
+                            pass
+
+
+        # update relative GlobalIDs in child tables
+        update_rel_guid(r"Biotics Edit\\ET", "ELSUBID", r"Biotics Edit\\ET_changes", "ELSUBID", "ref_GlobalID")
+
+        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourcept", "EO_ID",
+                        "eo_ptreps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourceln", "EO_ID",
+                        "eo_ptreps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourcepy", "EO_ID",
+                        "eo_ptreps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourcept", "EO_ID",
+                        "eo_reps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourceln", "EO_ID",
+                        "eo_reps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourcepy", "EO_ID",
+                        "eo_reps_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_sourcept", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+                        "eo_sourcept_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_sourceln", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+                        "eo_sourceln_GlobalID")
+        update_rel_guid(r"Biotics EDIT\\eo_sourcepy", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+                        "eo_sourcepy_GlobalID")

@@ -30,15 +30,15 @@ import numpy as np
 # Set tools to overwrite existing outputs
 arcpy.env.overwriteOutput = True
 
-workspace = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis0.sde"
-el_pt = r'{}\FIND2024.DBO.el_pt'.format(workspace)
-el_line = r'{}\FIND2024.DBO.el_line'.format(workspace)
-comm_poly = r'{}\FIND2024.DBO.comm_poly'.format(workspace)
-comm_pt = r'{}\FIND2024.DBO.comm_pt'.format(workspace)
-el_poly = r'{}\FIND2024.DBO.el_poly'.format(workspace)
-survey_poly = r'{}\FIND2024.DBO.survey_poly'.format(workspace)
-contacts = r'{}\FIND2024.DBO.contacts'.format(workspace)
-species = r'{}\FIND2024.DBO.SpeciesList'.format(workspace)
+workspace = r"C:\Users\mmoore\AppData\Roaming\Esri\ArcGISPro\Favorites\FIND_Working_pgh-gis1.sde"
+el_pt = r'{}\DBO.el_pt'.format(workspace)
+el_line = r'{}\DBO.el_line'.format(workspace)
+comm_poly = r'{}\DBO.comm_poly'.format(workspace)
+comm_pt = r'{}\DBO.comm_pt'.format(workspace)
+el_poly = r'{}\DBO.el_poly'.format(workspace)
+survey_poly = r'{}\DBO.survey_poly'.format(workspace)
+contacts = r'{}\DBO.contacts'.format(workspace)
+species = r'{}\DBO.SpeciesList'.format(workspace)
 
 input_features = [el_pt, el_line, comm_poly, comm_pt, el_poly, survey_poly]
 edit = arcpy.da.Editor(workspace)
@@ -115,16 +115,16 @@ for dat in date_updates:
 ## Below is for loading ListMaster records into the FIND Species List
 ##################################################################################
 # define ID number for the ListMaster survey - this can be found @ arcgis.com information page
-survey_id = 'efac50dc6b95479e9329092ae4c454c1'
+survey_id = 'aaa4bd7cbd6e4d8daf8fbc35acfcb216'
 
 # define list of fields used in the species list and ListMaster - these should match and be able to be used in retrieving lists from the ListMaster Survey123 form and in inserting them into the FIND Species List
 species_fields = ['refcode','plot_id','elem_name','conf','strata','species_cover','specimen_repo','subsite','comm']
 
 # load gis credentials from OS environment variables
-wpc_gis_username = os.environ.get("wpc_gis_username")
+wpc_gis_username = os.environ.get("wpc_portal_username")
 wpc_gis_password = os.environ.get("wpc_gis_password")
 # connect to my arcgis.com account
-gis = GIS('https://www.arcgis.com', wpc_gis_username, wpc_gis_password)
+gis = GIS('https://gis.waterlandlife.org/portal', wpc_gis_username, wpc_gis_password)
 
 # get ListMaster Feature Layer Collection using survey ID number found @ arcgis.com information page
 ListMaster = gis.content.get(survey_id)
@@ -142,7 +142,7 @@ all_species = lm_species.query()
 species_df = all_species.sdf
 
 # join survey dataframe to species dataframe to get reference code for species list - this is necessary because the relationship is based on globalid and not reference code
-merged_df = pd.merge(species_df, survey_df, left_on='parentglobalid', right_on='globalid')
+merged_df = pd.merge(species_df, survey_df, left_on='parentrowid', right_on='uniquerowid')
 merged_df = merged_df.replace({np.nan: None})
 
 # create list of tuples for all records in ListMaster Survey123

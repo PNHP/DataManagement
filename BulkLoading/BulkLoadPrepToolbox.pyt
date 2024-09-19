@@ -230,6 +230,7 @@ class TerrestrialGrouping(object):
                     join_id+=1
             arcpy.Buffer_analysis(i,o,1)
         data_merge = arcpy.Merge_management(data_out,os.path.join("memory","data_merge"))
+        #data_merge = arcpy.Merge_management(data_out,r"H:\\temp\\bulk load prep testing\\scratch.gdb\\data_merge")
         data_lyr = arcpy.MakeFeatureLayer_management(data_merge,"data_lyr")
 
         #updated to account for double and float field types
@@ -252,7 +253,7 @@ class TerrestrialGrouping(object):
         add_fields_text = ["SF_ID","SF_NEW","EO_ID","EO_NEW"]
         for field in add_fields_text:
             if len(arcpy.ListFields(data_lyr,field)) == 0:
-                arcpy.AddField_management(data_lyr,field,"TEXT","","",50)
+                arcpy.AddField_management(data_lyr,field,"TEXT","","",255)
             else:
                 pass
         add_fields_int = ["UNIQUEID"]
@@ -293,14 +294,12 @@ class TerrestrialGrouping(object):
                             pass
                     else:
                         pass
-                    #convert distance into string value as needed for select by tool
-                    distance = str(distance)+" METERS"
 
                     #select feature and assign sname and separation distance variables
                     arcpy.SelectLayerByAttribute_management(data_lyr, "NEW_SELECTION", "{}={}".format(objectid_field,objectid))
                     #check for existing EO reps within separation distance of feature
                     arcpy.SelectLayerByAttribute_management(eo_reps, 'NEW_SELECTION', eo_species_query.format(species_code_field,sname))
-                    arcpy.SelectLayerByLocation_management(eo_reps, "WITHIN_A_DISTANCE", data_lyr, distance-1, "SUBSET_SELECTION")
+                    arcpy.SelectLayerByLocation_management(eo_reps, "WITHIN_A_DISTANCE", data_lyr, str(distance-1)+" Meters", "SUBSET_SELECTION")
                     #check for selection on eo_reps layer - if there is a selection, get eoid, select all observations within the separation distance, and assign existing eoid to selected features
                     selection_num = arcpy.Describe(eo_reps).fidset
                     if selection_num is not u'':
@@ -312,7 +311,7 @@ class TerrestrialGrouping(object):
                         countAfter = 1
                         while(countBefore!=countAfter):
                             countBefore = int(arcpy.GetCount_management("data_lyr").getOutput(0))
-                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance-2, "ADD_TO_SELECTION")
+                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, str(distance-2)+" Meters", "ADD_TO_SELECTION")
                             arcpy.SelectLayerByAttribute_management(data_lyr, "SUBSET_SELECTION", species_query.format(species_code,sname))
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_ID") as cursor:
@@ -327,7 +326,7 @@ class TerrestrialGrouping(object):
                         countAfter = 1
                         while(countBefore!=countAfter):
                             countBefore = int(arcpy.GetCount_management("data_lyr").getOutput(0))
-                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, distance-2, "ADD_TO_SELECTION")
+                            arcpy.SelectLayerByLocation_management(data_lyr, "WITHIN_A_DISTANCE", data_lyr, str(distance-2)+" Meters", "ADD_TO_SELECTION")
                             arcpy.SelectLayerByAttribute_management(data_lyr, "SUBSET_SELECTION", species_query.format(species_code,sname))
                             countAfter = int(arcpy.GetCount_management("data_lyr").getOutput(0))
                         with arcpy.da.UpdateCursor(data_lyr, "EO_NEW") as cursor:
@@ -421,6 +420,7 @@ class TerrestrialGrouping(object):
             arcpy.AddMessage(data)
             arcpy.AddMessage(data_lyr)
             arcpy.management.JoinField(data,"join_id",os.path.join("memory","data_merge"),"join_id",add_fields)
+            #arcpy.management.JoinField(data, "join_id", r"H:\\temp\\bulk load prep testing\\scratch.gdb\\data_merge", "join_id", add_fields)
             arcpy.DeleteField_management(data,"join_id")
             arcpy.DeleteField_management(data,"buff_dist")
 
