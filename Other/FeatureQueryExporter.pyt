@@ -105,7 +105,7 @@ class CSVQueryExport(object):
         output_fc = params[4].valueAsText
         query_string = params[5].valueAsText
 
-        df = pd.read_csv(csv_tbl)
+        df = pd.read_csv(csv_tbl, encoding = 'latin1')
         query_list = df["{}".format(csv_field)].values.tolist()
 
         if query_string:

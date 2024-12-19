@@ -156,16 +156,16 @@ with arcpy.da.SearchCursor(species,species_fields) as cursor:
 
 # for each record in Survey123 ListMaster, check if it already exists in FIND species list - if it does, skip it. if it doesn't, load it in.
 for record in ListMaster_records:
-    if record in current_species:
-        print("A record of "+record[2]+" from survey with reference code " + record[0] + " is already in the FIND species list.")
-        pass
     # we also don't want to load records with null reference codes
-    elif record[0] is None:
+    if record[0] is None:
         print("A record has a null reference code. It is being skipped")
         pass
     # we also don't want to load records with null element names
     elif record[2] is None:
         print("A record has a null element name. It is being skipped.")
+        pass
+    elif record in current_species:
+        print("A record of "+record[2]+" from survey with reference code " + record[0] + " is already in the FIND species list.")
         pass
     else:
         with arcpy.da.InsertCursor(species,species_fields) as cursor:

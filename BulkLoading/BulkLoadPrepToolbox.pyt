@@ -192,7 +192,7 @@ class TerrestrialGrouping(object):
         #if using sf lines and polygons, all layers are buffered by 1m and merged. Otherwise, just points are buffered by 1m.
         sfs_in = [eo_sourcept]
         sfs_out = ["eo_sourcept1"]
-        if str(sf_include) == "True":
+        if sf_include:
             if eo_sourceln:
                 sfs_in.append(eo_sourceln)
                 sfs_out.append("eo_sourcln1")
@@ -632,7 +632,7 @@ class AquaticGrouping(object):
         #prepare single fc from biotics sf fcs
         sfs_in = [eo_sourcept]
         sfs_out = ["eo_sourcept1"]
-        if str(sf_include) == "True":
+        if sf_include:
             if eo_sourceln:
                 sfs_in.append(eo_sourceln)
                 sfs_out.append("eo_sourcln1")

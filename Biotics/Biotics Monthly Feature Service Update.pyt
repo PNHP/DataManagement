@@ -13,7 +13,6 @@
 import arcpy, time, datetime, sys, os
 from getpass import getuser
 import numpy as np
-import pandas
 import csv
 
 # Set tools to overwrite existing outputs
@@ -72,7 +71,7 @@ class BioticsUpdate(object):
 
         # system_username = getuser().upper()
 
-        pnhp_db = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis1.sde"
+        pnhp_db = r"C:\\Users\\mmoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_mmoore_pgh-gis1.sde"
 ##        arcpy.CreateVersion_management(working_db,"DBO.Working",username+"_TEMP","PUBLIC")
 ##        pnhp_db = arcpy.CreateDatabaseConnection_management("H:","PNHP_"+username+".sde","SQL_SERVER","pgh-gis0","OPERATING_SYSTEM_AUTH",username,password,"SAVE_USERNAME","PNHP","#","TRANSACTIONAL",'"WPC\\'+system_username+'".'+username+"_TEMP")
 
@@ -102,110 +101,120 @@ class BioticsUpdate(object):
         gdb_et = os.path.join(gdb,"ET")
         gdb_visits = os.path.join(gdb,"VISITS")
 
-        et_old = fs_et
-        et_new = gdb_et
-        et_change = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET_changes'
-
-        with arcpy.da.SearchCursor(gdb_sourceln,"EXPT_DATE") as cursor:
-            for row in cursor:
-                export_date = row[0]
-        old_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_old,"ELSUBID")})
-        new_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_new,"ELSUBID")})
-
-        insert_fields = ["ELSUBID","change","old_value","new_value","EXPT_DATE"]
-
-        # get records in new_elsubids that are not in old_elsubids, so classified as added - add to et changes tables
-        arcpy.AddMessage("Checking for ELSUBID additions")
-        added_elsubids = np.setdiff1d(new_elsubids,old_elsubids)
-        for a in added_elsubids:
-            values = [a,"ELSUBID addition",None,a,export_date]
-            with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                cursor.insertRow(values)
-            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
-                cursor.insertRow(values)
-
-        # records in old_elsubids that are not in new_elsubids, so classified as deleted - add to et changes table
-        arcpy.AddMessage("Checking for ELSUBID deletions")
-        deleted_elsubids = np.setdiff1d(old_elsubids,new_elsubids)
-        for d in deleted_elsubids:
-            values = [d,"ELSUBID deletion",d,None,export_date]
-            with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                cursor.insertRow(values)
-            with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
-                cursor.insertRow(values)
-
-        # get dictionary of fields for comparison with elsubid as key
-        old_et_dict = {int(row[0]):[row[1:]] for row in arcpy.da.SearchCursor(et_old,["ELSUBID","ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"])}
-
-        # define compare fields here
-        change_fields = ["ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"]
-        dict_value_index = [0,1,2,3,4,5,6,7,8,9,10,11]
-        # start loop to check for changes between the old ET values and the new ET values
-        for c,i in zip(change_fields,dict_value_index):
-            arcpy.AddMessage("Checking for changes in " + c)
-            with arcpy.da.SearchCursor(et_new,["ELSUBID", c]) as cursor:
-                for row in cursor:
-                    for k,v in old_et_dict.items():
-                        if k==int(row[0]):
-                            if row[1] == v[0][i]:
-                                pass
-                            elif v[0][i] is None and row[1] == '':
-                                pass
-                            elif v[0][i] == '' and row[1] is None:
-                                pass
-                            else:
-                                values = [int(row[0]), c, v[0][i], row[1], export_date]
-                                with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
-                                    cursor.insertRow(values)
-                                with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
-                                    cursor.insertRow(values)
-
-
-        # create lists for the feature service layers and the update gdb layers
-        fs_layers = [visits_server, fs_ptreps,fs_reps,fs_sourcept,fs_sourceln,fs_sourcepy,fs_et]
-        gdb_layers = [gdb_visits, gdb_ptreps,gdb_reps,gdb_sourcept,gdb_sourceln,gdb_sourcepy,gdb_et]
-
-        # start editing workspace so we can delete records from last month and append new records
-        edit.startEditing(False,False)
-        edit.startOperation()
-
-        # loop through feature service layers and delete records
-        for fs,g in zip(fs_layers,gdb_layers):
-            arcpy.AddMessage("Deleting features from: "+fs)
-            with arcpy.da.UpdateCursor(fs,'OBJECTID') as cursor:
-                for row in cursor:
-                    if row[0] is not None:
-                        cursor.deleteRow()
-            arcpy.AddMessage("Appending features to: "+fs)
-            arcpy.Append_management(g,fs,schema_type="NO_TEST")
-
-        edit.stopOperation()
-        edit.stopEditing(True)
-
-        arcpy.AddMessage("Creating ET Changes .csv Copy for Microsoft Teams")
-        # create ET_changes .csv
-        et_changes_copy = arcpy.ExportTable_conversion(et_change_server,os.path.join("memory","et_changes_copy"))
-        arcpy.JoinField_management(et_changes_copy,"ELSUBID",fs_et,"ELSUBID",["SNAME","SCOMNAME"])
-
-        # create list of rows that will be written to .csv
-        summary_list = []
-        with arcpy.da.SearchCursor(et_changes_copy, ["ELSUBID","SNAME","SCOMNAME","change","old_value","new_value","EXPT_DATE"]) as cursor:
-            for row in cursor:
-                summary_list.append(row)
-
-        # write to .csv file
-        with open(os.path.join(r"H:\temp", "ET_changes.csv"), 'w', newline='') as csvfile:
-            csv_output = csv.writer(csvfile)
-            # write heading rows to .csv
-            csv_output.writerow(["ELSUBID","SNAME","SCOMNAME","change","old_value","new_value","EXPT_DATE"])
-            # write dictionary rows to .csv
-            for row in summary_list:
-                csv_output.writerow(row)
+        # et_old = fs_et
+        # et_new = gdb_et
+        # et_change = r'W:\\Heritage\\Heritage_Data\\Biotics_datasets.gdb\\ET_changes'
+        #
+        # with arcpy.da.SearchCursor(gdb_sourceln,"EXPT_DATE") as cursor:
+        #     for row in cursor:
+        #         export_date = row[0]
+        # old_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_old,"ELSUBID")})
+        # new_elsubids = sorted({row[0] for row in arcpy.da.SearchCursor(et_new,"ELSUBID")})
+        #
+        # insert_fields = ["ELSUBID","change","old_value","new_value","EXPT_DATE"]
+        #
+        # # get records in new_elsubids that are not in old_elsubids, so classified as added - add to et changes tables
+        # arcpy.AddMessage("Checking for ELSUBID additions")
+        # added_elsubids = np.setdiff1d(new_elsubids,old_elsubids)
+        # for a in added_elsubids:
+        #     values = [a,"ELSUBID addition",None,a,export_date]
+        #     with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #     with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #
+        # # records in old_elsubids that are not in new_elsubids, so classified as deleted - add to et changes table
+        # arcpy.AddMessage("Checking for ELSUBID deletions")
+        # deleted_elsubids = np.setdiff1d(old_elsubids,new_elsubids)
+        # for d in deleted_elsubids:
+        #     values = [d,"ELSUBID deletion",d,None,export_date]
+        #     with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #     with arcpy.da.InsertCursor(et_change_server,insert_fields) as cursor:
+        #         cursor.insertRow(values)
+        #
+        # # get dictionary of fields for comparison with elsubid as key
+        # old_et_dict = {int(row[0]):[row[1:]] for row in arcpy.da.SearchCursor(et_old,["ELSUBID","ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"])}
+        #
+        # # define compare fields here
+        # change_fields = ["ELCODE","SNAME","SCOMNAME","GRANK","SRANK","EO_Track","USESA","SPROT","PBSSTATUS","SGCN","SENSITV_SP","ER_RULE"]
+        # dict_value_index = [0,1,2,3,4,5,6,7,8,9,10,11]
+        # # start loop to check for changes between the old ET values and the new ET values
+        #
+        # for c,i in zip(change_fields,dict_value_index):
+        #     arcpy.AddMessage("Checking for changes in " + c)
+        #     with arcpy.da.SearchCursor(et_new,["ELSUBID", c]) as cursor:
+        #         for row in cursor:
+        #             for k,v in old_et_dict.items():
+        #                 if k==int(row[0]):
+        #                     if row[1] == v[0][i]:
+        #                         pass
+        #                     elif v[0][i] is None and row[1] == '':
+        #                         pass
+        #                     elif v[0][i] == '' and row[1] is None:
+        #                         pass
+        #                     else:
+        #                         values = [int(row[0]), c, v[0][i], row[1], export_date]
+        #                         edit = arcpy.da.Editor(pnhp_db)
+        #                         edit.startEditing(False, True)
+        #                         edit.startOperation()
+        #                         with arcpy.da.InsertCursor(et_change,insert_fields) as cursor:
+        #                             cursor.insertRow(values)
+        #                         with arcpy.da.InsertCursor(et_change_server, insert_fields) as cursor:
+        #                             cursor.insertRow(values)
+        #                         edit.stopOperation()
+        #                         edit.stopEditing(True)
+        #
+        #
+        # # create lists for the feature service layers and the update gdb layers
+        # fs_layers = [visits_server, fs_ptreps,fs_reps,fs_sourcept,fs_sourceln,fs_sourcepy,fs_et]
+        # gdb_layers = [gdb_visits, gdb_ptreps,gdb_reps,gdb_sourcept,gdb_sourceln,gdb_sourcepy,gdb_et]
+        #
+        # # start editing workspace so we can delete records from last month and append new records
+        # edit = arcpy.da.Editor(pnhp_db)
+        # edit.startEditing(False,True)
+        # edit.startOperation()
+        #
+        # # loop through feature service layers and delete records
+        # for fs,g in zip(fs_layers,gdb_layers):
+        #     arcpy.AddMessage("Deleting features from: "+fs)
+        #     with arcpy.da.UpdateCursor(fs,'OBJECTID') as cursor:
+        #         for row in cursor:
+        #             if row[0] is not None:
+        #                 cursor.deleteRow()
+        #     arcpy.AddMessage("Appending features to: "+fs)
+        #     arcpy.Append_management(g,fs,schema_type="NO_TEST")
+        #
+        # edit.stopOperation()
+        # edit.stopEditing(True)
+        #
+        # arcpy.AddMessage("Creating ET Changes .csv Copy for Microsoft Teams")
+        # # create ET_changes .csv
+        # et_changes_copy = arcpy.ExportTable_conversion(et_change_server,os.path.join("memory","et_changes_copy"))
+        # arcpy.JoinField_management(et_changes_copy,"ELSUBID",fs_et,"ELSUBID",["SNAME","SCOMNAME"])
+        #
+        # # create list of rows that will be written to .csv
+        # summary_list = []
+        # with arcpy.da.SearchCursor(et_changes_copy, ["ELSUBID","SNAME","SCOMNAME","change","old_value","new_value","EXPT_DATE"]) as cursor:
+        #     for row in cursor:
+        #         summary_list.append(row)
+        #
+        # # write to .csv file
+        # with open(os.path.join(r"H:\temp", "ET_changes.csv"), 'w', newline='') as csvfile:
+        #     csv_output = csv.writer(csvfile)
+        #     # write heading rows to .csv
+        #     csv_output.writerow(["ELSUBID","SNAME","SCOMNAME","change","old_value","new_value","EXPT_DATE"])
+        #     # write dictionary rows to .csv
+        #     for row in summary_list:
+        #         csv_output.writerow(row)
 
         # define function to update foreign rel_globalid field with primary globalid based on some other ID value
         def update_rel_guid(parent_feature, primary_key, child_feature, foreign_key, related_guid):
             related_dict = {row[0]: row[1] for row in arcpy.da.SearchCursor(parent_feature, [primary_key, "GlobalID"]) if
                             row[0] is not None}
+            edit = arcpy.da.Editor(pnhp_db)
+            edit.startEditing(False,True)
+            edit.startOperation()
             with arcpy.da.UpdateCursor(child_feature, [foreign_key, related_guid]) as cursor:
                 for row in cursor:
                     for k, v in related_dict.items():
@@ -214,26 +223,27 @@ class BioticsUpdate(object):
                             cursor.updateRow(row)
                         else:
                             pass
-
+            edit.stopOperation()
+            edit.stopEditing(True)
 
         # update relative GlobalIDs in child tables
-        update_rel_guid(r"Biotics Edit\\ET", "ELSUBID", r"Biotics Edit\\ET_changes", "ELSUBID", "ref_GlobalID")
+        update_rel_guid(fs_et, "ELSUBID", et_change_server, "ELSUBID", "ref_GlobalID")
 
-        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourcept", "EO_ID",
+        update_rel_guid(fs_ptreps, "EO_ID", fs_sourcept, "EO_ID",
                         "eo_ptreps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourceln", "EO_ID",
+        update_rel_guid(fs_ptreps, "EO_ID", fs_sourceln, "EO_ID",
                         "eo_ptreps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_ptreps", "EO_ID", r"Biotics EDIT\\eo_sourcepy", "EO_ID",
+        update_rel_guid(fs_ptreps, "EO_ID", fs_sourcepy, "EO_ID",
                         "eo_ptreps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourcept", "EO_ID",
+        update_rel_guid(fs_reps, "EO_ID", fs_sourcept, "EO_ID",
                         "eo_reps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourceln", "EO_ID",
+        update_rel_guid(fs_reps, "EO_ID", fs_sourceln, "EO_ID",
                         "eo_reps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_reps", "EO_ID", r"Biotics EDIT\\eo_sourcepy", "EO_ID",
+        update_rel_guid(fs_reps, "EO_ID", fs_sourcepy, "EO_ID",
                         "eo_reps_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_sourcept", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+        update_rel_guid(fs_sourcept, "SF_ID", visits_server, "SF_ID",
                         "eo_sourcept_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_sourceln", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+        update_rel_guid(fs_sourceln, "SF_ID", visits_server, "SF_ID",
                         "eo_sourceln_GlobalID")
-        update_rel_guid(r"Biotics EDIT\\eo_sourcepy", "SF_ID", r"Biotics EDIT\\VISITS", "SF_ID",
+        update_rel_guid(fs_sourcepy, "SF_ID", visits_server, "SF_ID",
                         "eo_sourcepy_GlobalID")

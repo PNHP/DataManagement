@@ -35,8 +35,8 @@ else:
     accessdb = r'P:\Conservation Programs\Natural Heritage Program\Data Management\ACCESS databases\Processing_database\DM_processing.accdb'
 scratch = r'H:\temp\temp.gdb'
 
-cpp_core = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.CPPConservationPlanningPolygons\\PNHP.DBO.CPP_Core'
-cpp_supporting = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis0.sde\\PNHP.DBO.CPPConservationPlanningPolygons\\PNHP.DBO.CPP_Supporting'
+cpp_core = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis1.sde\\DBO.CPPConservationPlanningPolygons\\DBO.CPP_Core'
+cpp_supporting = r'C:\\Users\\MMoore\\AppData\\Roaming\\Esri\\ArcGISPro\\Favorites\\PNHP_Working_pgh-gis1.sde\\DBO.CPPConservationPlanningPolygons\\DBO.CPP_Supporting'
 
 # connect to cpp sqlite database to create spec id dictionary
 conn = sqlite3.connect(cpp_db)
