@@ -62,7 +62,5 @@ FIND/archived/__init__.py
 *.xml
 .idea/.name
 *.iml
-*.xml
-*.xml
-*.xml
 FIND/FIND_NeedsAttentionReport.txt
+*.gdb
