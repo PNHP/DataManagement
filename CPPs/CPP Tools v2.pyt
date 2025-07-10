@@ -1085,24 +1085,46 @@ class AlleghenyWoodratCore(object):
 
         specID = "Mammals_Allegheny_woodrat_20100521"
 
-        eo_ptreps = "Biotics\\eo_ptreps"
-        srcfeatures = ["Biotics\\eo_sourcept", "Biotics\\eo_sourceln", "Biotics\\eo_sourcepy"]
+        eo_ptreps = r"Biotics\\eo_ptreps"
+        srcfeatures = [r"Biotics\\eo_sourcept", r"Biotics\\eo_sourceln", r"Biotics\\eo_sourcepy"]
 
-        merge_features = []
-        buff_feat = bufferFeatures(srcfeatures, eoid, 200)
-        merge_features.append(buff_feat)
+        # Create EO ID query for creating feature layers
+        eoid_query = '"EO_ID" = {}'.format(eoid)
 
-        woodrat_lyr = arcpy.MakeFeatureLayer_management(woodrat_geo,"woodrat_lyr")
-        woodrat_lyr = arcpy.SelectLayerByLocation_management(woodrat_lyr,"INTERSECT",buff_feat)
+        woodrat_lyr = arcpy.MakeFeatureLayer_management(woodrat_geo, "woodrat_lyr")
 
-        with arcpy.da.SearchCursor(woodrat_lyr,"SHAPE@") as cursor:
-            for row in cursor:
-                merge_features.append(row[0])
+        merge_features = [woodrat_lyr]
 
-        merge_lyr = arcpy.Merge_management(merge_features,os.path.join("memory","merge_lyr"))
-        dissolve_lyr = arcpy.Dissolve_management(merge_lyr,os.path.join("memory","dissolve_lyr"))
+        count = 1
+        for layer in srcfeatures:
+            arcpy.MakeFeatureLayer_management(layer, "sf_lyr", eoid_query)
+            # Get count to make sure there are features
+            src_features = int(arcpy.GetCount_management("sf_lyr").getOutput(0))
+            if src_features > 0:
+                # Use woodrat polys to select source features
+                arcpy.SelectLayerByLocation_management("sf_lyr", "INTERSECT", woodrat_lyr)
+                # Use source features to select woodrat polys (use "ADD_TO_SELECTION" so that the selection accumulates for each layer in sf_list)
+                arcpy.SelectLayerByLocation_management(woodrat_lyr, "INTERSECT", "sf_lyr", selection_type="ADD_TO_SELECTION")
+                # Switch selection on source features, buffer by 200m
+                arcpy.SelectLayerByAttribute_management("sf_lyr", "SWITCH_SELECTION")
+                arcpy.Buffer_analysis("sf_lyr", "sf_lyr{}".format(count), "200 Meters")
+                # Append source feature buffer to list of features to append to core
+                merge_features.append("sf_lyr{}".format(count))
+                # Clear selection on source features
+                arcpy.SelectLayerByAttribute_management("sf_lyr", "CLEAR_SELECTION")
+                # Use source feature buffer to select woodrat geology within 200m
+                arcpy.SelectLayerByLocation_management(woodrat_lyr, "INTERSECT", "sf_lyr{}".format(count),
+                                                       selection_type="ADD_TO_SELECTION")
+            else:
+                arcpy.AddMessage("There are no features in {}".format(layer))
+                pass
 
-        with arcpy.da.SearchCursor(dissolve_lyr, "SHAPE@") as cursor:
+            count+=1
+
+        union = arcpy.Union_analysis(merge_features, "union", "ONLY_FID")
+        dissolve = arcpy.Dissolve_management(union, "dissolve")
+
+        with arcpy.da.SearchCursor(dissolve, "SHAPE@") as cursor:
             for row in cursor:
                 geom = row[0]
 
