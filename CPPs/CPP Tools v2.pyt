@@ -1102,7 +1102,7 @@ class AlleghenyWoodratCore(object):
             src_features = int(arcpy.GetCount_management("sf_lyr").getOutput(0))
             if src_features > 0:
                 # Use woodrat polys to select source features
-                arcpy.SelectLayerByLocation_management("sf_lyr", "INTERSECT", woodrat_lyr)
+                arcpy.SelectLayerByLocation_management("sf_lyr", "COMPLETELY_WITHIN", woodrat_lyr)
                 # Use source features to select woodrat polys (use "ADD_TO_SELECTION" so that the selection accumulates for each layer in sf_list)
                 arcpy.SelectLayerByLocation_management(woodrat_lyr, "INTERSECT", "sf_lyr", selection_type="ADD_TO_SELECTION")
                 # Switch selection on source features, buffer by 200m
